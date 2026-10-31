@@ -38,6 +38,13 @@ dispatcher, and the user's earlier Fn-Lock-off self-remap also established
 that HPAC-simulated F keys do not preserve `Shift+F4` as required. The project
 therefore does not expose a premature `nav apply` command.
 
+A controlled alternative test did establish that Fn Lock off makes the full
+navigation cluster native and that a host-side `Media_Prev` to F4 remap
+preserves physical Shift. The trace was `Shift down`, `F4 down/up`, `Shift up`.
+A simple AHK prototype handled F1–F6 but did not reliably suppress the
+firmware-generated shortcut chords used by F7–F12, so it is not a finished
+solution.
+
 ## What works
 
 - Enumerating every HP 460 top-level HID collection read-only
@@ -118,6 +125,8 @@ edited image is not expected to pass the stock updater.
 - [Vendor HID protocol and slot experiment](docs/protocol.md)
 - [Reverse-engineering notes](docs/reverse-engineering.md)
 - [Firmware notes and hashes](docs/firmware.md)
+- [Decision record and next plan](docs/decision-plan.md)
+- [Known-incomplete AHK experiment](experiments/fn-off-ahk-prototype.ahk)
 - [Sanitized HPAC startup capture](captures/hpac-startup-sanitized.txt)
 - [Raw reports and corrected experiment log](captures/reports.txt)
 
