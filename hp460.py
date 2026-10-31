@@ -399,8 +399,9 @@ def run_nav(args: argparse.Namespace) -> int:
     finally:
         for device in devices:
             api.close(device)
+    completed_action = "applied" if args.action == "apply" else "restored"
     print(
-        f"HP 460 navigation mappings {args.action}ed: "
+        f"HP 460 navigation mappings {completed_action}: "
         f"{len(assignments)} key(s), firmware=0x{selected.version:04X}"
     )
     return 0
