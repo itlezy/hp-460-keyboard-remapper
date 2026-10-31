@@ -34,6 +34,26 @@ INVALID_HANDLE_VALUE = ctypes.c_void_p(-1).value
 
 
 TARGET_VKS = {
+    0x70: "F1",
+    0x71: "F2",
+    0x72: "F3",
+    0x73: "F4",
+    0x74: "F5",
+    0x75: "F6",
+    0x76: "F7",
+    0x77: "F8",
+    0x78: "F9",
+    0x79: "F10",
+    0x7A: "F11",
+    0x7B: "F12",
+    0xA0: "LEFT_SHIFT",
+    0xA1: "RIGHT_SHIFT",
+    0xAD: "VOLUME_MUTE",
+    0xAE: "VOLUME_DOWN",
+    0xAF: "VOLUME_UP",
+    0xB0: "MEDIA_NEXT",
+    0xB1: "MEDIA_PREVIOUS",
+    0xB3: "MEDIA_PLAY_PAUSE",
     0x2C: "PRINTSCREEN",
     0x24: "HOME",
     0x23: "END",
@@ -638,7 +658,7 @@ def run_verify(_: argparse.Namespace) -> int:
     user32 = ctypes.WinDLL("user32", use_last_error=True)
     names = TARGET_VKS
     previous = {vk: False for vk in names}
-    print("Monitoring target native keys and hook-visible HP default events.")
+    print("Monitoring F-row, modifiers, native keys, and HP default events.")
     print("Press Ctrl+C to stop.")
     try:
         while True:
