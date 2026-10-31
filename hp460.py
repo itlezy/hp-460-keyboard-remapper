@@ -140,6 +140,16 @@ class HidDevice:
     version: int
 
 
+@dataclass(frozen=True)
+class HidCollection:
+    usage_page: int
+    usage: int
+    input_length: int
+    output_length: int
+    feature_length: int
+    version: int
+
+
 class WindowsHidApi:
     def __init__(self) -> None:
         if os.name != "nt":
@@ -323,6 +333,63 @@ class WindowsHidApi:
                     self.kernel32.CloseHandle(handle)
         return devices, blocked
 
+    def matching_collections(self) -> tuple[list[HidCollection], int]:
+        """Inspect HP 460 top-level HID collections without write access."""
+        collections: list[HidCollection] = []
+        blocked = 0
+        identity = "_dev_vid&0203f0_pid&814a_"
+
+        for path in self.interface_paths():
+            if identity not in path.lower():
+                continue
+            handle = self.kernel32.CreateFileW(
+                path,
+                0,
+                FILE_SHARE_READ | FILE_SHARE_WRITE,
+                None,
+                OPEN_EXISTING,
+                0,
+                None,
+            )
+            if ctypes.c_void_p(handle).value == INVALID_HANDLE_VALUE:
+                blocked += 1
+                continue
+
+            attributes = HiddAttributes()
+            attributes.size = ctypes.sizeof(attributes)
+            preparsed_data = ctypes.c_void_p()
+            try:
+                if not self.hid.HidD_GetAttributes(handle, ctypes.byref(attributes)):
+                    continue
+                if (attributes.vendor_id, attributes.product_id) != (
+                    VENDOR_ID,
+                    PRODUCT_ID,
+                ):
+                    continue
+                if not self.hid.HidD_GetPreparsedData(
+                    handle, ctypes.byref(preparsed_data)
+                ):
+                    continue
+                caps = HidpCaps()
+                status = self.hid.HidP_GetCaps(preparsed_data, ctypes.byref(caps))
+                if status < 0:
+                    continue
+                collections.append(
+                    HidCollection(
+                        usage_page=caps.usage_page,
+                        usage=caps.usage,
+                        input_length=caps.input_report_byte_length,
+                        output_length=caps.output_report_byte_length,
+                        feature_length=caps.feature_report_byte_length,
+                        version=attributes.version_number,
+                    )
+                )
+            finally:
+                if preparsed_data.value:
+                    self.hid.HidD_FreePreparsedData(preparsed_data)
+                self.kernel32.CloseHandle(handle)
+        return collections, blocked
+
     def close(self, device: HidDevice) -> None:
         self.kernel32.CloseHandle(device.handle)
 
@@ -404,6 +471,26 @@ def run_devices(_: argparse.Namespace) -> int:
     return 0 if devices else 2
 
 
+def run_collections(_: argparse.Namespace) -> int:
+    api = WindowsHidApi()
+    collections, blocked = api.matching_collections()
+    for index, collection in enumerate(collections):
+        print(
+            f"[{index}] usage={collection.usage_page:04X}:{collection.usage:04X} "
+            f"input={collection.input_length} output={collection.output_length} "
+            f"feature={collection.feature_length} "
+            f"firmware=0x{collection.version:04X}"
+        )
+    if blocked:
+        print(
+            f"Collections unavailable for read-only inspection: {blocked}",
+            file=sys.stderr,
+        )
+    if not collections:
+        print("No inspectable HP 460 HID collections were found.")
+    return 0 if collections else 2
+
+
 def run_verify(_: argparse.Namespace) -> int:
     if os.name != "nt":
         raise RuntimeError("Key verification is only available on Windows.")
@@ -432,6 +519,11 @@ def build_parser() -> argparse.ArgumentParser:
 
     devices = subparsers.add_parser("devices", help="list matching control devices")
     devices.set_defaults(func=run_devices)
+
+    collections = subparsers.add_parser(
+        "collections", help="inspect all matching HID collections read-only"
+    )
+    collections.set_defaults(func=run_collections)
 
     fn_lock = subparsers.add_parser("fn-lock", help="set current/startup Fn Lock")
     fn_lock.add_argument("state", choices=("on", "off"))

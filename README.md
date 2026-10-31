@@ -66,6 +66,9 @@ Fully close HP Accessory Center before accessing the vendor collection.
 # Confirm the control interface and firmware version.
 PYTHON.EXE hp460.py devices
 
+# Inspect every HP 460 top-level HID collection without write access.
+PYTHON.EXE hp460.py collections
+
 # Preview the persistent Fn Lock report without opening the keyboard.
 PYTHON.EXE hp460.py fn-lock on --dry-run
 

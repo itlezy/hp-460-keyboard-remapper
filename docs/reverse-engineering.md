@@ -113,6 +113,7 @@ flash or patch firmware.
 - Rizin/Cutter with the Ghidra decompiler plugin
 - Python scripts using `pefile` and Capstone for targeted inspection
 - Windows low-level/async key-state verification
+- read-only enumeration of every HP 460 top-level HID collection
 - static analysis of the public Ash firmware images
 
 No HP executable or firmware content is included in this repository.

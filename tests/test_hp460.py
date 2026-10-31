@@ -1,13 +1,19 @@
 import unittest
 
 from hp460 import (
+    build_parser,
     build_button_clear_report,
     build_button_set_report,
     build_fn_lock_report,
+    run_collections,
 )
 
 
 class ProtocolTests(unittest.TestCase):
+    def test_collections_command_is_available(self) -> None:
+        args = build_parser().parse_args(["collections"])
+        self.assertIs(args.func, run_collections)
+
     def test_fn_lock_states(self) -> None:
         expected = {
             (False, False): 0x02,
