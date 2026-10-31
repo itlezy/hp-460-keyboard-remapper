@@ -1,5 +1,10 @@
 # Current software-only plan
 
+Reassessment: the [stock native-mode flag](native-mode-and-nuclear-options.md)
+offers a stronger target if a live setter can be found. Its original native
+insertion path passes offline function tests; live access is unresolved.
+The sampled VM companion described here remains a research fallback.
+
 ## Constraints and status
 
 - No case opening, soldering, probes or electronic equipment is required for
@@ -141,6 +146,10 @@ notice and exited; it has no startup or background registration.
    scheduling and BLE queue delays. Notification callbacks can yield, so a
    sampled stream could miss an event. Removing an extra explicit delay helps
    the model but does not prove hardware performance.
+   Cross-interface ordering also matters: if a queued F-key notification arrives
+   after Windows has processed a physical Shift release, preserving the current
+   Windows modifier state alone will not reconstruct the original chord. The
+   offline modifier-byte checks do not prove Windows chord timing.
 5. Add/test the live host reader and Windows injection backend. Test plain and
    modified F-keys, key hold/repeat, rapid taps, simultaneous keys, unchanged
    navigation/ordinary keys, second keyboard, sleep/reconnect and orderly stop.

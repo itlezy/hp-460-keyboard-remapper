@@ -5,6 +5,12 @@ Multi-Device Bluetooth Keyboard** (`VID 03F0`, `PID 814A`).
 
 ## Current status
 
+Newest finding: [stock native-mode flag and stronger options](docs/native-mode-and-nuclear-options.md).
+A separate RAM flag plus Fn Lock off makes the unmodified transformer emit
+native F1–F12 and navigation usages in 19,456 offline ARM runs. No live setter
+for that flag is known yet. Access to this native path is the preferred new
+research target; the sampled companion below remains a fallback.
+
 Current direction: [software-only companion and temporary F-row mask program](docs/software-only-plan.md).
 A running helper is acceptable; hardware tools and opening the keyboard are
 outside the current plan. A bounded program passes original-ARM emulation for

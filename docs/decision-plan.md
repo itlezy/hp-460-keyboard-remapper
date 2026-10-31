@@ -1,5 +1,10 @@
 # Decision record and next plan
 
+Newest reassessment: [stock native-mode flag and stronger options](native-mode-and-nuclear-options.md).
+The original transformer has an all-native mode in emulation, selected by a
+RAM flag whose live accessibility is unresolved. A Windows filter is not a
+guaranteed full fallback because it cannot recover untransmitted distinctions.
+
 The [current software-only plan](software-only-plan.md) supersedes the next
 steps below. The user has no electronics equipment and accepts a resident
 helper. Research now focuses on a temporary VM program and PC companion;

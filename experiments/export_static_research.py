@@ -37,6 +37,9 @@ def main() -> None:
     save("program-vm-emulation.txt", [sys.executable, project / "experiments/validate_program_vm.py", args.firmware])
     save("consumer-pipeline-emulation.txt", [sys.executable, project / "experiments/validate_consumer_programs.py", args.firmware])
     save("key-mask-emulation.txt", [sys.executable, project / "experiments/validate_key_mask_program.py", args.firmware])
+    save("layer-flag-emulation.txt", [sys.executable, project / "experiments/validate_layer_flag.py", args.firmware])
+    for address, count in ((0x1000464C, 48), (0x1000E8D8, 29)):
+        save(f"ash-{address:X}.asm.txt", [args.rizin, "-q", "-a", "arm", "-b", "16", "-m", "0x0FFFFFF3", "-e", "asm.cpu=cortexm", "-e", "scr.color=0", "-c", f"pd {count} @ {address}", args.firmware])
     print("Local reports exported; proprietary disassembly remains ignored by Git.")
 
 
