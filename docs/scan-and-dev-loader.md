@@ -1,5 +1,9 @@
 # Scanner and local development-loader results
 
+Subsequent result: [device signature proof and next hardware test](device-validation-and-next-test.md).
+That report identifies the inner signature check and replaces the former
+requirement for proven recovery, following acceptance of losing one keyboard.
+
 ## Fixed flash matrix confirmed
 
 The cached matrix processing routine at `0x10002D5C` iterates 16 scan bytes,
@@ -73,9 +77,9 @@ The application also calls low-address function-pointer tables: for example,
 `0x10011390` calls through the pointer at `0x7AC` to read stored data. Such an
 internal read primitive is not evidence of a remotely callable read command.
 The destination pointers and underlying controller routines are outside the
-downloaded application image. No function validating the opaque inner block
-has been identified; its role as a signature and any device-side enforcement
-are unproven.
+downloaded application image. The inner block was unidentified at this stage;
+the later report now identifies its separate device key, RSA decoder and
+application-digest comparison.
 
 The next analysis should follow the actual HID feature callbacks into the OTA
 implementation, identifying any device-side validation and any address-based
@@ -83,10 +87,10 @@ readback operation. If the required code/data live in controller ROM or
 protected debug space, board inspection and a debug probe may be needed to
 obtain them.
 
-Do not start an OTA upload merely to test whether the edited image is accepted:
-that could write or erase staging flash before the eventual validation result.
-The current results justify offline validation and read-path research, not a
-live update.
+The later analysis confirms storage operations precede final validation, and
+the candidate fails the ordinary device check. Even with accepted brick risk,
+a known-failing upload is a poor experiment. Board debug/recovery identification
+is the next useful step.
 
 ## Reproduce
 

@@ -1,9 +1,10 @@
 # Decision record and next plan
 
-The later [firmware follow-up](firmware-followup.md) supersedes the priority
-order below: matrix replacement now passes function emulation, and the outer
-HPAC signatures have been independently verified. The firmware readout path
-and inner/device validation remain open.
+The later [device-validation report](device-validation-and-next-test.md)
+supersedes the priority order below. Matrix replacement passes function
+emulation, but fails the now-identified device RSA/SHA check. HPAC development
+mode bypasses only the outer signature. Debug/recovery access and physical
+flash readout remain open; the next step is controller/board identification.
 
 ## Results established on hardware
 
@@ -66,7 +67,12 @@ authentication-sized regions, and neither the validation algorithm nor a
 recovery procedure has been proved. A rejected image is the mild failure; an
 accepted but unbootable image could brick the keyboard.
 
-Required gates before a live attempt:
+Original sequence, superseded where noted below by the
+[device validation and hardware test plan](device-validation-and-next-test.md).
+The user now accepts losing one keyboard. A proven restoration procedure is
+preferred, but is no longer an absolute prerequisite for an informed experiment.
+
+Original gates before a live attempt:
 
 1. Build an offline patcher locked to the exact Ash 1.2.0 SHA-256. It should
    emit a byte-level manifest and a patched copy, never modify the source.

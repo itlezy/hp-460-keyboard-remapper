@@ -156,18 +156,21 @@ native. The proposed two-halfword patch is:
 | `0x10007420` | `0x742D` | `09 D0` | `2D D0` | Stamp: branch to native block |
 | `0x10007422` | `0x742F` | `20 46` | `2C E0` | Insert–Page Down: branch to native block |
 
-This is a static candidate, not a flashable release. It has not passed the
-container's unknown authentication checks, has not been run on hardware, and
-must not be flashed without a full backup and a proven recovery route.
+This is an offline candidate, not a flashable release. It fails the now-known
+signature checks and has not been installed or run on hardware.
+The later [hardware test plan](device-validation-and-next-test.md)
+records acceptance of losing one experimental keyboard and identifies why the
+ordinary OTA signature path rejects an edited application.
 
 ## Updater authentication boundary
 
 Later HPAC analysis proved that two of these regions are outer RSA signature
 blocks and identified the exact nested layout. See the
 [firmware follow-up](firmware-followup.md) for the verified record offsets,
-public-key operation, digest checks and function emulator results. The first
-inner block remains unresolved. The historical size-based observations below
-are retained as the starting point for that analysis.
+public-key operation, digest checks and function emulator results. The
+[subsequent device analysis](device-validation-and-next-test.md) resolves the
+first inner block using a different RSA key and the receiver's digest check.
+The historical size-based observations below are retained as the starting point.
 
 The image is neither encrypted nor packed as a whole, but the 1.2.0 tail has
 three distinct 256-byte high-entropy regions, at file offsets:
@@ -178,11 +181,10 @@ three distinct 256-byte high-entropy regions, at file offsets:
 0x160B5..0x161B5
 ```
 
-Two are preceded by a `04 01 00 00` length marker. Their cryptographic format
-has not yet been proven, so the analyzer deliberately calls them
-"authentication-sized opaque blocks," not verified RSA signatures. Their
-layout is enough to make a stock OTA patch unsafe to assume: changing code is
-easy, producing an image accepted by every validation stage is not.
+Two are preceded by a `04 01 00 00` length marker. The structural analyzer
+originally called these "authentication-sized opaque blocks." Later independent
+verification identifies all three as RSA signature blocks: one device-level
+application signature and two host-level container signatures.
 
 Observed firmware strings and descriptors included:
 
@@ -206,9 +208,10 @@ Capturing an HPAC-generated native-key program established the bytecode used
 by exposed programmable F-row buttons, but writing that bytecode to entries
 `12–23` did not connect those entries to the direct navigation path.
 
-Do not flash a modified image to pursue this remap without first identifying
-the update validation, controller debug access, full-flash backup, and a tested
-recovery path. This utility does not flash or patch firmware.
+The later [device validation report](device-validation-and-next-test.md)
+identifies the application signature and the next debug/recovery experiment.
+The user accepts losing one keyboard. `firmware_analysis.py` is read-only;
+the separate `firmware_candidate.py` builds an offline copy and never flashes.
 
 ## Reproduce the static findings
 

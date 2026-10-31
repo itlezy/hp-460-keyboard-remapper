@@ -1,5 +1,9 @@
 # Firmware and HPAC follow-up
 
+Later result: [device signature proof and next hardware test](device-validation-and-next-test.md).
+The inner block and its normal device-side RSA/SHA check are now identified;
+the earlier uncertainty recorded below has been resolved by that analysis.
+
 ## Required behavior
 
 F1–F12, Print Screen, Home, End, Page Up and Page Down must emit their native
@@ -117,18 +121,17 @@ Ash 1.2.0 contains:
 | record 0 | `0x00000`, length `0x160A8` | signed firmware payload |
 | payload | `0x00009`, length `0x15F9B` | nested image package |
 | nested image | `0x0000D`, length `0x15E93` | ARM application and data |
-| inner 256-byte block | `0x15EA4` | opaque trailer data; purpose unproven |
+| inner 256-byte block | `0x15EA4` | application signature; verified later using the device key |
 | outer signature | `0x15FA8` | verifies using the embedded HPAC key |
 | record 1 | `0x160A8`, length `0x10D` | empty metadata payload with its own signature |
 | record 1 signature | `0x160B5` | also verifies using the embedded HPAC key |
 
 Changing the four branch bytes makes the outer payload digest disagree with
 the existing signature. Applying that same public-key operation to the inner
-block does not recover a matching digest. This failed candidate-key test does
-not establish that the block is a signature: its purpose is unproven. No
-device routine checking this block has been identified, and device enforcement
-has not been demonstrated. References to an "inner validator" in earlier
-discussion were a hypothesis, not a recovered function.
+block does not recover a matching digest. That failed candidate-key test alone
+did not establish its purpose. The later device-validation report identifies
+a different key and the actual receiver check, resolving this uncertainty.
+References to an "inner validator" before that discovery were a hypothesis.
 
 The packet receiver also handles distinct remote Protocol, Flash, Security,
 Format and FWData errors. This shows that the host supports a device-side
@@ -157,11 +160,9 @@ Primary references:
 1. Scanner lookup is now confirmed: it reads a fixed 16-by-8 flash table directly.
    No RAM table indirection is present in that lookup. See the later
    [scanner and development-loader report](scan-and-dev-loader.md).
-2. Trace Ash's OTA dispatch to determine whether any device-side validation
-   exists and what consumes the opaque trailer. Establish whether the relevant
-   routines execute in the application, copied RAM, or controller ROM. Compare
-   them with documented PixArt command values; inspect any readback command
-   before using it.
+2. OTA dispatch and the inner RSA/SHA check are now traced in the later report.
+   The preferred candidate fails the ordinary device check. Debug/recovery
+   access is the next investigation; full-flash readback is still unavailable.
 3. The local `.FW2` development loader is now traced: its inclusion flag disables
    the outer signature check when loading a local file. An x64 emulator replay
    confirms the isolated checker accepts the edited payload in this mode.
@@ -174,8 +175,9 @@ Primary references:
    compatible probe if debug access is open. Do not use an unlock procedure
    that requires mass erase: it would destroy the backup we need.
 6. Validate the preferred matrix candidate against the actual dump, including
-   multiple simultaneous keys and every relevant state, then establish the
-   applicable upload/debug recovery procedure before a hardware write.
+   multiple simultaneous keys and every relevant state. The user now accepts
+   losing one experimental keyboard; the later report replaces the former
+   mandatory proven-recovery gate with an informed hardware experiment.
 
 A native firmware change remains the first choice. A Windows HID filter is a
 fallback if installation of modified firmware cannot be made practical. More

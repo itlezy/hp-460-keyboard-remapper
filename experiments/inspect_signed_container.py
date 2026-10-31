@@ -52,7 +52,7 @@ def main() -> None:
                 if len(inner_block) == 256:
                     recovered_inner = pow(int.from_bytes(inner_block, "big"), exponent, modulus).to_bytes(256, "big")
                     print(f"candidate_known_key_prefix={recovered_inner[:2].hex()}, candidate_digest_matches={recovered_inner[-32:] == hashlib.sha256(payload[4:4 + inner_length]).digest()}")
-                    print("Inner block purpose and device-side enforcement are unproven; this failed candidate-key test does not establish a signature.")
+                    print("This tests the host's outer key only. The inner signature uses a different device key; see validate_device_signature.py.")
             for block_offset in range(4, len(trailer), 256):
                 signature = trailer[block_offset:block_offset + 256]
                 if len(signature) != 256:

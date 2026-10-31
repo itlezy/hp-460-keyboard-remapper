@@ -5,7 +5,7 @@ Multi-Device Bluetooth Keyboard** (`VID 03F0`, `PID 814A`).
 
 ## Current status
 
-Latest analysis: [firmware follow-up and readout plan](docs/firmware-followup.md).
+Latest analysis: [device signature proof and next hardware experiment](docs/device-validation-and-next-test.md).
 Two offline patch candidates pass ARM function emulation; the preferred one
 replaces the special matrix keycodes with native usages and discards the media
 layer. HPAC's outer firmware signatures are now independently verified, and a
@@ -14,8 +14,11 @@ installation/recovery path are still pending.
 
 The later [scanner and local-loader analysis](docs/scan-and-dev-loader.md)
 confirms the fixed flash lookup and an HPAC development flag that can skip
-the outer signature check for local `.FW2` loading. Device-side validation
-and flash readback are still unresolved.
+the outer signature check for local `.FW2` loading. The subsequent device
+analysis identifies a different RSA-2048 key and verifies the inner application
+signature using original ARM instructions. The native matrix candidate fails
+that check. Hardware debug/recovery access and flash readback remain unresolved;
+ordinary `.FW2` upload is not a demonstrated installation route.
 
 The Fn Lock control is proven and works both immediately and at keyboard
 startup:
@@ -103,6 +106,9 @@ PYTHON.EXE hp460.py verify
 
 # Analyze a separately downloaded public firmware image without flashing it.
 PYTHON.EXE firmware_analysis.py C:\path\to\Ash_1200.FW
+
+# Print the exact-hash native matrix candidate manifest, without writing a file.
+PYTHON.EXE firmware_candidate.py C:\path\to\Ash_1200.FW
 ```
 
 Optional editable installation:
@@ -138,6 +144,7 @@ edited image is not expected to pass the stock updater.
 - [Reverse-engineering notes](docs/reverse-engineering.md)
 - [Firmware notes and hashes](docs/firmware.md)
 - [Firmware follow-up, signature analysis and readout plan](docs/firmware-followup.md)
+- [Device signature verification, Italian/US layout and next hardware test](docs/device-validation-and-next-test.md)
 - [Decision record and next plan](docs/decision-plan.md)
 - [Known-incomplete AHK experiment](experiments/fn-off-ahk-prototype.ahk)
 - [Sanitized HPAC startup capture](captures/hpac-startup-sanitized.txt)
