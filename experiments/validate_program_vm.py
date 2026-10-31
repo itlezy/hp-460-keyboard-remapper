@@ -19,7 +19,8 @@ from firmware_analysis import ASH_1200_SHA256
 def emulate_program(data: bytes, code: bytes, *, ticks: int = 4, incoming_mask: int = 0,
                     incoming_masks: list[int] | None = None, emission_ticks: list[int] | None = None,
                     physical_modifiers: int = 0, through_filter: bool = False, button_id: int = 3,
-                    filter_masks: list[int] | None = None, through_simulate: bool = False):
+                    filter_masks: list[int] | None = None, through_simulate: bool = False,
+                    record_host: int = 1, record_press_type: int = 0):
     from unicorn import Uc, UC_ARCH_ARM, UC_MODE_THUMB, UC_HOOK_CODE
     from unicorn.arm_const import UC_ARM_REG_R0, UC_ARM_REG_R1, UC_ARM_REG_R2, UC_ARM_REG_R3, UC_ARM_REG_SP, UC_ARM_REG_LR, UC_ARM_REG_PC
 
@@ -29,7 +30,7 @@ def emulate_program(data: bytes, code: bytes, *, ticks: int = 4, incoming_mask: 
     uc.mem_write(0x10000000, data[13:])
     uc.mem_write(0x200027A5, bytes((physical_modifiers,)))
     context, descriptor, stack = 0x20002AEC, 0x20009000, 0x2003F000
-    uc.mem_write(descriptor, bytes((button_id, 1, 0, len(code))) + code + bytes(16))
+    uc.mem_write(descriptor, bytes((button_id, record_host, record_press_type, len(code))) + code + bytes(16))
     heap = 0x20010000
     allocations = {}
     reports = []
@@ -86,7 +87,7 @@ def emulate_program(data: bytes, code: bytes, *, ticks: int = 4, incoming_mask: 
         return uc.reg_read(UC_ARM_REG_R0)
 
     if through_simulate:
-        payload = bytes((2, 0, button_id, 1, 0, len(code))) + code
+        payload = bytes((2, 0, button_id, record_host, record_press_type, len(code))) + code
         packet = bytes((0, 0x0D, len(payload), 0)) + payload
         uc.mem_write(descriptor, packet + bytes(16))
         run(0x1000A738, (0, descriptor, len(packet), 0), (0,))
