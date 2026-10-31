@@ -57,17 +57,22 @@ PYTHON.EXE hp460.py devices
 # Preview every report without opening or changing the keyboard.
 PYTHON.EXE hp460.py nav plan
 
-# Keep F1-F12 as ordinary function keys now and after power-on.
-PYTHON.EXE hp460.py fn-lock on
-
-# Program native Print Screen/Home/End/Page Up/Page Down.
-PYTHON.EXE hp460.py nav apply
+# Apply the canonical configuration in one operation:
+# persistent Fn Lock plus native Print Screen/Home/End/Page Up/Page Down.
+PYTHON.EXE hp460.py setup
 
 # Monitor only those five Windows virtual keys while testing.
 PYTHON.EXE hp460.py verify
 ```
 
 Power-cycle the keyboard and test again. The mappings should persist.
+
+`setup` is the recommended operation for a new keyboard. It is equivalent to:
+
+```powershell
+PYTHON.EXE hp460.py fn-lock on
+PYTHON.EXE hp460.py nav apply
+```
 
 To clear these custom programs and return to HP's firmware behavior:
 

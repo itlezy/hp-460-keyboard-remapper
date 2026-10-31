@@ -429,6 +429,30 @@ def run_fn_lock(args: argparse.Namespace) -> int:
     return 0
 
 
+def run_setup(args: argparse.Namespace) -> int:
+    fn_report = build_fn_lock_report(current=True, startup=True)
+    print("fn-lock     current=on startup=on  " + fn_report.hex(" ").upper())
+    print_nav_plan("apply", NAV_ASSIGNMENTS)
+    if args.dry_run:
+        return 0
+
+    api, devices, selected = open_selected_device(args.device_index)
+    try:
+        api.write(selected, fn_report)
+        time.sleep(args.delay)
+        for assignment in NAV_ASSIGNMENTS:
+            api.write(selected, build_nav_set_report(assignment))
+            time.sleep(args.delay)
+    finally:
+        for device in devices:
+            api.close(device)
+    print(
+        "HP 460 canonical setup applied: Fn Lock current/startup=on, "
+        f"5 native navigation keys, firmware=0x{selected.version:04X}"
+    )
+    return 0
+
+
 def run_devices(_: argparse.Namespace) -> int:
     api = WindowsHidApi()
     devices, blocked = api.open_matching_devices()
@@ -477,6 +501,14 @@ def build_parser() -> argparse.ArgumentParser:
 
     devices = subparsers.add_parser("devices", help="list matching control devices")
     devices.set_defaults(func=run_devices)
+
+    setup = subparsers.add_parser(
+        "setup", help="enable persistent Fn Lock and apply all five native keys"
+    )
+    setup.add_argument("--device-index", type=int, default=0)
+    setup.add_argument("--delay", type=float, default=0.3)
+    setup.add_argument("--dry-run", action="store_true")
+    setup.set_defaults(func=run_setup)
 
     fn_lock = subparsers.add_parser("fn-lock", help="set current/startup Fn Lock")
     fn_lock.add_argument("state", choices=("on", "off"))

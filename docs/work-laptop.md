@@ -36,12 +36,17 @@ disable or remove the keyboard in Device Manager.
 
 ```powershell
 PYTHON.EXE hp460.py nav plan
-PYTHON.EXE hp460.py fn-lock on
-PYTHON.EXE hp460.py nav apply
+PYTHON.EXE hp460.py setup
 ```
 
 `nav plan` is non-mutating. It prints the five reports that `nav apply` will
-send.
+send. `setup` is the canonical configuration: it enables Fn Lock for both the
+current session and startup, then programs all five native keys. To preview the
+complete setup without opening the keyboard, run:
+
+```powershell
+PYTHON.EXE hp460.py setup --dry-run
+```
 
 ## Verify
 

@@ -2,6 +2,7 @@ import unittest
 
 from hp460 import (
     NAV_ASSIGNMENTS,
+    build_parser,
     build_fn_lock_report,
     build_nav_restore_report,
     build_nav_set_report,
@@ -53,6 +54,12 @@ class ProtocolTests(unittest.TestCase):
     def test_key_filter_preserves_protocol_order(self) -> None:
         selected = selected_assignments(["end", "home"])
         self.assertEqual([item.name for item in selected], ["home", "end"])
+
+    def test_setup_defaults_to_live_canonical_configuration(self) -> None:
+        args = build_parser().parse_args(["setup"])
+        self.assertFalse(args.dry_run)
+        self.assertEqual(args.device_index, 0)
+        self.assertEqual(args.delay, 0.3)
 
 
 if __name__ == "__main__":
