@@ -13,6 +13,10 @@ research target; the sampled companion below remains a fallback.
 The [access audit](docs/native-mode-access-audit.md) confirms its GPIO source;
 32,768 known-settings callback cases do not alter it. Live access remains open.
 
+[Live vendor transport](docs/live-vendor-transport.md): a direct Bluetooth
+auxiliary enable/read/reset handshake now works on hardware. The protocol is
+disabled again afterward; no native-mode RAM write has been established.
+
 Current direction: [software-only companion and temporary F-row mask program](docs/software-only-plan.md).
 A running helper is acceptable; hardware tools and opening the keyboard are
 outside the current plan. A bounded program passes original-ARM emulation for

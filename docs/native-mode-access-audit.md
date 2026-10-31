@@ -1,5 +1,9 @@
 # Native-mode access investigation
 
+Later live result: [vendor GATT handshake](live-vendor-transport.md) succeeds
+after the keyboard is awake. This resolves transport availability for that
+auxiliary route; it does not establish a native-mode flag setter.
+
 ## Result
 
 The [native-mode behavior](native-mode-and-nuclear-options.md) remains supported

@@ -1,0 +1,12 @@
+{
+  "source": "live HP 460, public protocol fields only",
+  "service_uuid": "0000ff00-0000-1000-8000-00805f9b34fb",
+  "characteristic_uuid": "0000ff01-0000-1000-8000-00805f9b34fb",
+  "before_read": "000000000000000000000000000000000000000000",
+  "enable_write": "10",
+  "enabled_read": "0e021000",
+  "reset_write": "28",
+  "after_reset_read": "000000000000000000000000000000000000000000",
+  "stored_programs_before": 0,
+  "stored_programs_after": 0
+}
