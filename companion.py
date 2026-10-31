@@ -39,18 +39,40 @@ F_VKS = {index + 1: 0x70 + index for index in range(12)}
 KEYEVENTF_KEYUP = 0x0002
 
 
+ULONG_PTR = ctypes.c_size_t
+
+
+class MouseInput(ctypes.Structure):
+    _fields_ = [
+        ("dx", wintypes.LONG),
+        ("dy", wintypes.LONG),
+        ("mouseData", wintypes.DWORD),
+        ("dwFlags", wintypes.DWORD),
+        ("time", wintypes.DWORD),
+        ("dwExtraInfo", ULONG_PTR),
+    ]
+
+
 class KeybdInput(ctypes.Structure):
     _fields_ = [
         ("wVk", wintypes.WORD),
         ("wScan", wintypes.WORD),
         ("dwFlags", wintypes.DWORD),
         ("time", wintypes.DWORD),
-        ("dwExtraInfo", ctypes.c_ulong),
+        ("dwExtraInfo", ULONG_PTR),
+    ]
+
+
+class HardwareInput(ctypes.Structure):
+    _fields_ = [
+        ("uMsg", wintypes.DWORD),
+        ("wParamL", wintypes.WORD),
+        ("wParamH", wintypes.WORD),
     ]
 
 
 class InputUnion(ctypes.Union):
-    _fields_ = [("ki", KeybdInput)]
+    _fields_ = [("mi", MouseInput), ("ki", KeybdInput), ("hi", HardwareInput)]
 
 
 class Input(ctypes.Structure):
