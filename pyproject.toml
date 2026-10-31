@@ -1,0 +1,12 @@
+[project]
+name = "hp-460-keyboard-remapper"
+version = "0.1.0"
+description = "Dependency-free Windows HID utility for HP 460 Fn Lock and hidden navigation-key slots"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+
+[project.scripts]
+hp460 = "hp460:main"
+
+[tool.setuptools]
+py-modules = ["hp460"]
