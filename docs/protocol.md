@@ -54,8 +54,9 @@ For Button packets, observed commands were:
 
 The startup config reply reported `nbProgrammableButtons:24` and no custom
 descriptors. Static analysis later confirmed a 24-entry identity map inside
-the custom-program engine. The Ash physical-matrix table independently maps
-virtual codes `0x0100–0x0112` to IDs `0–18`, including the navigation cluster.
+the custom-program engine. The Ash physical matrix separately uses virtual
+actions `0x0100–0x0112`; later control-flow analysis showed that these are not
+automatically equivalent to HPAC program IDs.
 The decoded startup exchange is in `../captures/hpac-startup-sanitized.txt`.
 
 ## Query and multipart replies
@@ -141,20 +142,15 @@ The stable physical behavior with Fn Lock enabled was:
 | Page Up | Consumer Brightness Up `0x006F` | Page Up |
 | Page Down | Consumer Brightness Down `0x0070` | Page Down |
 
-Later firmware disassembly changed the interpretation. The Ash matrix itself
-contains virtual codes `0x010C–0x0112`, which map exactly to program IDs
-`12–18`, and the custom filter consumes the same identity-mapped bits before
-the default dispatcher. Therefore the live result does not disprove the IDs;
-it shows that the test missed an apply, profile, layer, or refresh condition.
-Raw observations remain recorded in `../captures/reports.txt` and must not be
-rewritten as a success.
+Later firmware disassembly explains the negative result. The matrix actions
+are routed through a Fn/Fn-Lock transformer before report generation. The
+normal Fn-Lock-on navigation path calls hardcoded code at `0x100038B4`, not the
+24-entry custom filter. Raw observations remain recorded in
+`../captures/reports.txt` and must not be rewritten as a success.
 
-The specific retest differs from the first one: use Fn Lock off, map visible
-IDs `0–11` to native F1–F12, and map hidden ID `12` to Print Screen. The
-compiled defaults for IDs `13–18` are already Insert, Home, Page Up, Delete,
-End, and Page Down. This puts the desired primary behavior on the path that the
-custom filter is known to process instead of trying to modify the direct path
-selected by Fn Lock on.
+The previously proposed Fn-Lock-off self-map is also not a solution: it is the
+same HPAC simulation mechanism already tested by the user, and physical Shift
+does not combine into the required `Shift+F4`.
 
 ## Fn Lock
 

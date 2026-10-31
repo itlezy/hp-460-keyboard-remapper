@@ -42,24 +42,24 @@ and the command handler updates the same active-profile container consulted at
 keypress time. The default switch contains native Insert/Home/Page
 Up/Delete/End/Page Down cases at entries `13–18`.
 
-More importantly, the Ash physical-matrix table at `0x10013820` contains every
-virtual code from `0x0100` through `0x0112` exactly once. Codes `0x010C–0x0112`
-are the Stamp-through-Page-Down positions, and subtracting `0x0100` gives IDs
-`12–18`. This disproves the former conclusion that the physical keys bypass
-the configurable mask. The negative live result remains valid evidence that
-the first write/test sequence missed an activation condition, not evidence
-that the IDs are disconnected. The experiment was cleaned up by clearing IDs
-`12–23`; the keyboard then returned an empty custom configuration.
+The Ash physical-matrix table at `0x10013820` contains every virtual code from
+`0x0100` through `0x0112` exactly once. Codes `0x010C–0x0112` represent Stamp,
+Insert, Delete, Home, End, Page Up, and Page Down. These are matrix action
+numbers, however, not proof of matching HPAC program slots. The experiment was
+cleaned up by clearing IDs `12–23`; the keyboard then returned an empty custom
+configuration.
 
 The custom filter is reached through a direct thunk: `0x1000F4DC` calls
 `0x10001CB8`, which transfers control to runtime `0x200003F5`, before calling
-the default dispatcher. This supports a more precise explanation for the
-negative test. Fn Lock chooses between a direct HID path and this special-key
-path; the unwanted no-Fn navigation actions observed with Fn Lock on were on
-the direct side. The next test should use Fn Lock off and replace the special
-F1–F12 defaults with native F1–F12 programs. IDs `13–18` then retain their
-native dispatcher defaults, while ID `12` must be overridden from the compiled
-language-switch macro to Print Screen.
+the default special dispatcher. The matrix transformer at `0x100072F8` makes a
+separate Fn/Fn-Lock decision. With Fn Lock on and Fn not held, navigation
+actions call the hardcoded direct dispatcher at `0x100038B4`; Home becomes
+consumer `0x0192`, End becomes Esc, and Page Up/Down become brightness usages.
+The native converter at `0x10004284` contains the desired HID usages.
+
+This also retracts the proposed Fn-Lock-off self-map workaround. It uses the
+same simulated HPAC program mechanism the user already tested, and that path
+does not preserve a physically held Shift for `Shift+F4`.
 
 ## Native-key bytecode
 

@@ -23,28 +23,20 @@ tested keyboard behaves as follows:
 | Page Up | Brightness Up (`0x006F`) | native Page Up |
 | Page Down | Brightness Down (`0x0070`) | native Page Down |
 
-HPAC's Ash UI exposes only F1–F12, but that is an application restriction, not
-the complete firmware map. Ash 1.2.0 contains a 13-by-10 physical-matrix table
-with virtual keycodes `0x0100–0x0112`. They map exactly to programmable IDs
-`0–18`: F1–F12 followed by Stamp, Insert, Home, Page Up, Delete, End, and Page
-Down. The same IDs feed the 24-bit custom-program filter before the compiled
-default dispatcher.
+HPAC's Ash UI exposes only F1–F12. Ash 1.2.0 nevertheless contains a 13-by-10
+physical-matrix table with virtual keycodes `0x0100–0x0112`: F1–F12 followed by
+Stamp, Insert, Delete, Home, End, Page Up, and Page Down. Deeper disassembly
+shows that these virtual codes are layer inputs, not automatically equivalent
+to HPAC program IDs.
 
 An earlier live experiment wrote and read back programs in IDs `12–18`, but
 the five tested keys did not change on either layer. That negative observation
 is preserved, but the later matrix disassembly disproves its former
-interpretation that these physical keys bypass the programmable path. The
-remaining question is which profile/layer/apply condition the experiment
-missed. Until a reversible retest answers that, the project does not expose a
-premature `nav apply` command.
-
-The leading explanation is now concrete: Fn Lock selects between a direct HID
-path and the programmable special-action path. The earlier test kept Fn Lock
-on, while the target keys' unwanted no-Fn actions were on the direct path. A
-promising equivalent configuration is Fn Lock **off**, programs `0–11` mapped
-back to native F1–F12, and program `12` mapped to native Print Screen. On that
-path Home, Page Up, Delete, End, and Page Down already have native compiled
-defaults. This remains a testable model, not a claimed completed remap.
+interpretation that the stored records necessarily control those matrix
+positions. The normal Fn-Lock-on navigation path is a separate hardcoded
+dispatcher, and the user's earlier Fn-Lock-off self-remap also established
+that HPAC-simulated F keys do not preserve `Shift+F4` as required. The project
+therefore does not expose a premature `nav apply` command.
 
 ## What works
 
@@ -107,12 +99,13 @@ Home and the firmware macro can be intercepted in user mode, but:
 - Raw Input can identify devices/usages but cannot suppress the original event
   system-wide.
 
-The keyboard-side route is now identified: virtual keycodes `0x010C–0x0112`
-correspond to programmable IDs `12–18`. The next step is to resolve the runtime
-profile/layer condition and repeat one reversible program/clear cycle. A
-firmware patch is not justified while this built-in route remains available;
-the public updater container also ends in three 256-byte authentication-sized
-blocks, so an ordinary edited image is not expected to pass the stock updater.
+The keyboard-side decision is now identified. With Fn Lock on and Fn not held,
+the firmware sends the navigation cluster through a hardcoded dispatcher at
+`0x100038B4`; its cases produce App2, Esc, and brightness usages. The native
+converter at `0x10004284` contains the desired Home/End/Page Up/Page Down
+usages. A firmware patch is mechanically small, but the public updater
+container ends in three 256-byte authentication-sized blocks, so an ordinary
+edited image is not expected to pass the stock updater.
 
 ## Documentation
 

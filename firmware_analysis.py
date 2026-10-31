@@ -25,6 +25,7 @@ RUNTIME_DATA_DESTINATION = 0x20001564
 RUNTIME_DATA_SIZE = 0x0C3C
 BUTTON_MAP_VA = 0x100139A6
 BUTTON_DISPATCH_TABLE_VA = 0x1000F2F0
+DIRECT_DISPATCH_TABLE_VA = 0x100038D8
 KEY_MATRIX_VA = 0x10013820
 KEY_MATRIX_ROWS = 13
 KEY_MATRIX_COLUMNS = 10
@@ -72,11 +73,38 @@ VIRTUAL_KEY_NAMES = (
     "F12",
     "Stamp / Print Screen",
     "Insert",
-    "Home",
-    "Page Up",
     "Delete",
+    "Home",
     "End",
+    "Page Up",
     "Page Down",
+)
+
+DIRECT_ACTIONS = (
+    "consumer mute",
+    "consumer volume down",
+    "consumer volume up",
+    "consumer previous track",
+    "consumer play/pause",
+    "consumer next track",
+    "emoji / OS-dependent macro",
+    "microphone mute / OS-dependent macro",
+    "task view / OS-dependent macro",
+    "settings macro",
+    "lock macro",
+    "search macro",
+    "no action in this dispatcher",
+    "keyboard Insert (usage 0x49)",
+    "keyboard Delete (usage 0x4C)",
+    "consumer AL Local Machine Browser (usage 0x0192)",
+    "keyboard Esc (usage 0x29; OS-dependent alternative 0x06)",
+    "consumer Brightness Increment (usage 0x006F)",
+    "consumer Brightness Decrement (usage 0x0070)",
+    "host/device function 19",
+    "host/device function 20",
+    "host/device function 21",
+    "host/device function 22",
+    "default / no action",
 )
 
 
@@ -227,6 +255,17 @@ def parse_dispatch_targets(data: bytes) -> tuple[int, ...]:
     return tuple(table_base + value * 2 for value in relative_halfwords)
 
 
+def parse_direct_dispatch_targets(data: bytes) -> tuple[int, ...]:
+    """Decode the direct-layer inline switch used with Fn Lock on."""
+    offset = va_to_file_offset(DIRECT_DISPATCH_TABLE_VA)
+    count = data[offset]
+    relative_halfwords = data[offset + 1 : offset + 1 + count]
+    if len(relative_halfwords) != count:
+        raise ValueError("truncated direct-layer jump table")
+    table_base = DIRECT_DISPATCH_TABLE_VA + 1
+    return tuple((table_base + value * 2) & ~1 for value in relative_halfwords)
+
+
 def authentication_sized_blocks(data: bytes) -> tuple[tuple[int, int], ...]:
     """Locate signature-sized opaque tail regions without claiming their format."""
     candidates: list[tuple[int, int]] = []
@@ -257,6 +296,7 @@ def report(path: Path) -> str:
     key_positions = virtual_key_positions(key_matrix)
     button_map = parse_button_map(data)
     dispatch_targets = parse_dispatch_targets(data)
+    direct_dispatch_targets = parse_direct_dispatch_targets(data)
 
     lines = [
         f"file: {path}",
@@ -286,7 +326,7 @@ def report(path: Path) -> str:
     lines.extend(
         [
             "",
-            "matrix virtual keys and programmable IDs:",
+            "matrix virtual keys and action indices:",
         ]
     )
     for button_id, row, column in key_positions:
@@ -315,6 +355,12 @@ def report(path: Path) -> str:
         ]
     )
     for index, (target, action) in enumerate(zip(dispatch_targets, BUTTON_ACTIONS)):
+        lines.append(f"  {index:2d}: 0x{target:08X}  {action}")
+
+    lines.extend(["", "Fn-Lock-on direct-layer dispatcher:"])
+    for index, (target, action) in enumerate(
+        zip(direct_dispatch_targets, DIRECT_ACTIONS)
+    ):
         lines.append(f"  {index:2d}: 0x{target:08X}  {action}")
     return "\n".join(lines)
 

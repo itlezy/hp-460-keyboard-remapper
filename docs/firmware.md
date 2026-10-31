@@ -47,21 +47,20 @@ Immediately before the programmable-button data, Ash 1.2.0 contains a
 ordinary USB keyboard usages. Nineteen entries instead use a contiguous
 firmware-private range:
 
-| Virtual code | Program ID | Compiled meaning |
+| Virtual code | Matrix action | Physical meaning |
 | ---: | ---: | --- |
-| `0x0100–0x010B` | `0–11` | F1–F12 physical positions |
-| `0x010C` | `12` | Stamp / Print Screen position |
+| `0x0100–0x010B` | `0–11` | F1–F12 positions |
+| `0x010C` | `12` | Stamp / Print Screen |
 | `0x010D` | `13` | Insert |
-| `0x010E` | `14` | Home |
-| `0x010F` | `15` | Page Up |
-| `0x0110` | `16` | Delete |
-| `0x0111` | `17` | End |
+| `0x010E` | `14` | Delete |
+| `0x010F` | `15` | Home |
+| `0x0110` | `16` | End |
+| `0x0111` | `17` | Page Up |
 | `0x0112` | `18` | Page Down |
 
 Each value in `0x0100–0x0112` occurs exactly once. Subtracting `0x0100`
-produces the same IDs used by HPAC descriptors and by the special-key bitmask.
-This is direct static evidence that the navigation cluster belongs to the
-same firmware engine even though HPAC's Ash QML exposes only IDs `0–11`.
+produces the switch index used by the matrix-layer converters. It does not by
+itself prove that the same number is an HPAC-programmable physical position.
 
 The custom-program filter at runtime `0x200003F5` runs before the default
 special-key dispatcher. It loops over 24 configuration entries and uses the
@@ -95,13 +94,11 @@ zero is replaced with `active_profile + 1`; it is not an inactive namespace.
 This rules out the earlier host-field hypothesis.
 
 The controlled live experiment that stored programs in entries `12–23` did
-not alter the five target keys on either layer. The physical-matrix table means
-that result cannot establish a bypass around the configurable bits: IDs
-`12–18` are explicitly present in Ash's own keymap. The experiment instead
-missed a runtime condition—most likely layer/profile selection, descriptor
-activation, or refresh—and needs to be repeated with one known-supported
-program while observing the complete reply and reconnect behavior. HP's
-product material advertises only F1–F12 because that is all its UI exposes.
+not alter the five target keys on either layer. Later control-flow analysis
+explains the result: the matrix action IDs are transformed by separate native,
+special, and direct dispatchers. The configurable 24-bit mask is not the
+normal Fn-Lock-on direct navigation route. HP's product material advertises
+only F1–F12 because those are the physical positions its UI supports.
 
 ## Layer-path model
 
@@ -111,24 +108,24 @@ filter at runtime `0x200003F5`. Only the bits not consumed by a custom program
 continue to the default dispatcher at `0x1000F2D4`.
 
 This explains an important asymmetry in the observed behavior. Fn Lock does
-not simply exchange HID usages after dispatch; it selects between this
-programmable special-action path and another direct path. With Fn Lock on, the
-no-Fn F-row is direct F1–F12, while the target navigation positions take their
-unwanted direct alternatives. Holding Fn reaches native navigation behavior,
-but that does not prove it traverses the same configurable invocation.
+not simply exchange HID usages after dispatch; it selects among distinct code
+paths. With Fn Lock on and Fn not held, virtual navigation actions reach the
+hardcoded switch at `0x100038B4`. Its relevant cases are:
 
-The strongest next test is therefore the inverse configuration:
+| Matrix action | Physical key | Direct output |
+| ---: | --- | --- |
+| `14` | Delete | keyboard Delete `0x4C` |
+| `15` | Home | consumer App2 `0x0192` |
+| `16` | End | keyboard Esc `0x29` |
+| `17` | Page Up | brightness increment `0x006F` |
+| `18` | Page Down | brightness decrement `0x0070` |
 
-1. turn Fn Lock off;
-2. program IDs `0–11` to native usages F1–F12 (`0x3A–0x45`);
-3. program ID `12` to Print Screen (`0x46`);
-4. leave IDs `13–18` at their compiled native navigation defaults;
-5. verify ordinary and modified F keys plus Stamp and navigation, then clear
-   the test descriptors if any assumption fails.
-
-If confirmed, this produces the desired no-Fn behavior without needing the
-stored Fn Lock bit to be on. It uses the firmware's supported descriptor
-engine and avoids both a Windows hook and a firmware rewrite.
+The native converter at `0x10004284` maps the same matrix inputs to Delete
+`0x4C`, Home `0x4A`, End `0x4D`, Page Up `0x4B`, and Page Down `0x4E`. These
+are immediate constants in executable code, not a writable profile table.
+The user's prior Fn-Lock-off experiment also shows why self-programming F1–F12
+is not an equivalent workaround: the simulated program does not compose with a
+physically held Shift, so `Shift+F4` still requires Fn.
 
 ## Updater authentication boundary
 
@@ -164,12 +161,10 @@ This confirms that the 21-byte `06 ...` Windows reports are implemented by the
 keyboard firmware itself. HPAC is a user-mode client of that firmware protocol,
 not a front end for a proprietary kernel driver.
 
-The target navigation defaults are compiled into the dispatcher, while the
-physical matrix and custom descriptors select which action runs. Capturing an
-HPAC-generated native-key program established the bytecode used by exposed
-programmable buttons. Writing that bytecode to the hidden IDs was accepted but
-did not alter the first test, so activation semantics—not ID existence—remain
-the open issue.
+The target direct-layer navigation outputs are compiled into executable code.
+Capturing an HPAC-generated native-key program established the bytecode used
+by exposed programmable F-row buttons, but writing that bytecode to entries
+`12–23` did not connect those entries to the direct navigation path.
 
 Do not flash a modified image to pursue this remap without first identifying
 the update validation, controller debug access, full-flash backup, and a tested
@@ -192,6 +187,17 @@ targets. It is read-only and never opens a keyboard.
 
 - [HP 460 product page](https://www.hp.com/us-en/shop/pdp/hp-460-multi-device-bluetooth-keyboard-7n7b8aa-aba)
   (HP describes F1–F12 programming)
+- [HP 460 product datasheet](https://cdn.cs.1worldsync.com/syndication/feeds/hp/inline-content/P9/5/4/C/2/0/54C20D26C405B04B31DAD63A5D5862085808C430_source.PDF)
+  (HP describes 12 programmable F1–F12 buttons, not navigation-key remapping)
+- [Microsoft keyboard and mouse HID client drivers](https://learn.microsoft.com/en-us/windows-hardware/drivers/hid/keyboard-and-mouse-hid-client-drivers)
+  (Microsoft's supported architecture for value-added keyboard behavior is a
+  filter driver layered over the standard HID keyboard stack)
+- [Microsoft HID driver samples](https://learn.microsoft.com/en-us/windows-hardware/drivers/samples/human-interface-devices--hid--driver-samples)
+  (official starting points for HID filtering and virtual HID work)
 - [PAR2801 reverse-engineering materials and datasheet index](https://github.com/AlexKryukoff/K530-QMK-BLE-OpenRGB/tree/sn32_master_openrgb/Redragon_K530_Keyboard)
   (useful comparison material for the PixArt Cortex-M0 BLE family; not proof
   that the HP board exposes the same recovery wiring)
+- [PixArt PAR2801 comparison manual](https://fcc.report/FCC-ID/2AIPB-PAJ2801UA-40/3083972.pdf)
+  (documents Cortex-M0 and two-pin SWD support for a related PixArt part; it
+  does not identify the exact HP controller or prove that SWD is exposed or
+  unlocked on this keyboard)

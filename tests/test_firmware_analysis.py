@@ -10,6 +10,7 @@ from firmware_analysis import (
     decompress_runtime_data,
     file_offset_to_va,
     parse_key_matrix,
+    parse_direct_dispatch_targets,
     parse_header,
     va_to_file_offset,
     virtual_key_positions,
@@ -78,6 +79,16 @@ class FirmwareAnalysisTests(unittest.TestCase):
         )
         with self.assertRaisesRegex(ValueError, "0x0100 occurs 0 times"):
             virtual_key_positions(matrix)
+
+    def test_direct_dispatch_parser_decodes_inline_relative_targets(self) -> None:
+        table_va = 0x100038D8
+        offset = va_to_file_offset(table_va)
+        data = bytearray(offset + 4)
+        data[offset : offset + 4] = bytes([3, 1, 2, 3])
+        self.assertEqual(
+            parse_direct_dispatch_targets(bytes(data)),
+            (table_va + 2, table_va + 4, table_va + 6),
+        )
 
 
 if __name__ == "__main__":

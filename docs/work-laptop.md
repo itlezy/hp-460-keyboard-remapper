@@ -46,7 +46,6 @@ tested 1.20.0 firmware, only the Fn-held path emits the native navigation keys.
 - **Endpoint protection blocks HID access:** follow organizational policy; do
   not bypass it.
 
-Do not use the experimental slot packets as a finished navigation-key solution
-yet. Static analysis proves IDs `12–18` exist in the Ash physical matrix, but
-the first live write/test did not activate them. Wait for the reversible retest
-workflow to resolve profile/layer/refresh semantics.
+Do not use the experimental slot packets as a navigation-key solution. The
+normal Fn-Lock-on navigation actions are hardcoded in a separate firmware
+dispatcher, and accepted records in IDs `12–23` did not alter that path.
