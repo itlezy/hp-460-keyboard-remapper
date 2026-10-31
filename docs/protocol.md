@@ -149,6 +149,13 @@ it shows that the test missed an apply, profile, layer, or refresh condition.
 Raw observations remain recorded in `../captures/reports.txt` and must not be
 rewritten as a success.
 
+The specific retest differs from the first one: use Fn Lock off, map visible
+IDs `0–11` to native F1–F12, and map hidden ID `12` to Print Screen. The
+compiled defaults for IDs `13–18` are already Insert, Home, Page Up, Delete,
+End, and Page Down. This puts the desired primary behavior on the path that the
+custom filter is known to process instead of trying to modify the direct path
+selected by Fn Lock on.
+
 ## Fn Lock
 
 Fn Lock uses a DeviceSpecific packet. State byte 16 is a bit field:

@@ -38,6 +38,14 @@ remaining question is which profile/layer/apply condition the experiment
 missed. Until a reversible retest answers that, the project does not expose a
 premature `nav apply` command.
 
+The leading explanation is now concrete: Fn Lock selects between a direct HID
+path and the programmable special-action path. The earlier test kept Fn Lock
+on, while the target keys' unwanted no-Fn actions were on the direct path. A
+promising equivalent configuration is Fn Lock **off**, programs `0–11` mapped
+back to native F1–F12, and program `12` mapped to native Print Screen. On that
+path Home, Page Up, Delete, End, and Page Down already have native compiled
+defaults. This remains a testable model, not a claimed completed remap.
+
 ## What works
 
 - Enumerating only the HP `FF05:0001` vendor HID collection

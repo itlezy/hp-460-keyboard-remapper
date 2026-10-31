@@ -103,6 +103,33 @@ activation, or refresh—and needs to be repeated with one known-supported
 program while observing the complete reply and reconnect behavior. HP's
 product material advertises only F1–F12 because that is all its UI exposes.
 
+## Layer-path model
+
+The report transformation at `0x1000F4DC` reads the 24-bit special-key mask,
+then calls the thunk at `0x10001CB8`. That thunk jumps directly to the custom
+filter at runtime `0x200003F5`. Only the bits not consumed by a custom program
+continue to the default dispatcher at `0x1000F2D4`.
+
+This explains an important asymmetry in the observed behavior. Fn Lock does
+not simply exchange HID usages after dispatch; it selects between this
+programmable special-action path and another direct path. With Fn Lock on, the
+no-Fn F-row is direct F1–F12, while the target navigation positions take their
+unwanted direct alternatives. Holding Fn reaches native navigation behavior,
+but that does not prove it traverses the same configurable invocation.
+
+The strongest next test is therefore the inverse configuration:
+
+1. turn Fn Lock off;
+2. program IDs `0–11` to native usages F1–F12 (`0x3A–0x45`);
+3. program ID `12` to Print Screen (`0x46`);
+4. leave IDs `13–18` at their compiled native navigation defaults;
+5. verify ordinary and modified F keys plus Stamp and navigation, then clear
+   the test descriptors if any assumption fails.
+
+If confirmed, this produces the desired no-Fn behavior without needing the
+stored Fn Lock bit to be on. It uses the firmware's supported descriptor
+engine and avoids both a Windows hook and a firmware rewrite.
+
 ## Updater authentication boundary
 
 The image is neither encrypted nor packed as a whole, but the 1.2.0 tail has

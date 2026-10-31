@@ -51,6 +51,16 @@ the first write/test sequence missed an activation condition, not evidence
 that the IDs are disconnected. The experiment was cleaned up by clearing IDs
 `12–23`; the keyboard then returned an empty custom configuration.
 
+The custom filter is reached through a direct thunk: `0x1000F4DC` calls
+`0x10001CB8`, which transfers control to runtime `0x200003F5`, before calling
+the default dispatcher. This supports a more precise explanation for the
+negative test. Fn Lock chooses between a direct HID path and this special-key
+path; the unwanted no-Fn navigation actions observed with Fn Lock on were on
+the direct side. The next test should use Fn Lock off and replace the special
+F1–F12 defaults with native F1–F12 programs. IDs `13–18` then retain their
+native dispatcher defaults, while ID `12` must be overridden from the compiled
+language-switch macro to Print Screen.
+
 ## Native-key bytecode
 
 HPAC was temporarily used to assign native F12 to visible button ID 11. Its
