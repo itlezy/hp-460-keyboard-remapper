@@ -134,6 +134,12 @@ and signatures; do not write that whole file directly to flash.
 
 ## Next steps
 
+Update: [manufacturer board photos and opening status](board-and-opening.md)
+are now available for regulatory model TPA-S001K. Use those for the initial
+controller/debug investigation; opening the user's unit is not required just
+to obtain an initial board view. A full screw/clip removal procedure is not
+yet verified.
+
 1. With batteries removed, inspect the experimental keyboard's underside model
    and regulatory identifiers, then both sides of the PCB. Obtain readable
    controller and flash chip markings, board revision and test-pad labels.
