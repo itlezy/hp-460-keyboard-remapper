@@ -50,6 +50,41 @@ startup:
 PYTHON.EXE hp460.py fn-lock on
 ```
 
+## Companion (the working fix)
+
+Normal behavior is now delivered by a small Windows helper, `companion.py`,
+plus a temporary VM program:
+
+- Fn Lock is set off, so Home/End/Page Up/Page Down are native without Fn.
+- A bounded VM program consumes all twelve F-row bits and reports the
+  combined mask over the vendor notification interface.
+- The helper injects only the changed F1-F12 key events through SendInput
+  while physical Shift/Ctrl/Alt stay untouched, so Shift+F4 works.
+
+```powershell
+PYTHON.EXE companion.py                          # run in the foreground
+PYTHON.EXE companion.py --observe --seconds 20   # validate the mask stream
+PYTHON.EXE companion.py --install-autostart      # hidden auto-start on login
+PYTHON.EXE companion.py --uninstall-autostart
+PYTHON.EXE companion.py --dry-run
+```
+
+The helper terminates HP Accessory Center first (opt out with
+`--no-kill-hpac`) because the app holds the vendor control interface. F1-F12
+only type while the helper runs; the navigation cluster works without it.
+
+Build a standalone exe:
+
+```powershell
+PYTHON.EXE -m pip install pyinstaller
+PYTHON.EXE -m PyInstaller hp460-companion.spec
+# produces dist\hp460-companion.exe
+```
+
+Known limits: the mask stream is roughly 23 Hz, the firmware allows one
+running program at a time, and HP Accessory Center must be closed while the
+helper is active.
+
 The desired primary-layer remap is **not solved yet**. With Fn Lock on, the
 tested keyboard behaves as follows:
 
