@@ -61,8 +61,8 @@ The directory-opening routine at `0x1400F8FC0` constructs the same
 `QStandardPaths::writableLocation(10) + "/HPAC/FWUpdates"` directory used by the
 scanner, creates it if necessary and opens it. Its UI labels include "Load
 local FW2s" and "open local FW2s directory". These are local firmware-loading
-features, not a flash-backup feature. Merely renaming a file does not repair
-its inner validation data.
+features, not a flash-backup feature. Merely renaming a file leaves its opaque
+inner trailer unchanged; whether the keyboard checks that trailer is unknown.
 
 ## Firmware readout status and next action
 
@@ -73,13 +73,15 @@ The application also calls low-address function-pointer tables: for example,
 `0x10011390` calls through the pointer at `0x7AC` to read stored data. Such an
 internal read primitive is not evidence of a remotely callable read command.
 The destination pointers and underlying controller routines are outside the
-downloaded application image. The inner signature key/validator is still
-unresolved.
+downloaded application image. No function validating the opaque inner block
+has been identified; its role as a signature and any device-side enforcement
+are unproven.
 
 The next analysis should follow the actual HID feature callbacks into the OTA
-implementation, locating the inner validator and any address-based readback
-operation. If the required code/data live in controller ROM or protected debug
-space, board inspection and a debug probe may be needed to obtain them.
+implementation, identifying any device-side validation and any address-based
+readback operation. If the required code/data live in controller ROM or
+protected debug space, board inspection and a debug probe may be needed to
+obtain them.
 
 Do not start an OTA upload merely to test whether the edited image is accepted:
 that could write or erase staging flash before the eventual validation result.

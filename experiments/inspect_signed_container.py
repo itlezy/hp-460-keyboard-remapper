@@ -46,11 +46,13 @@ def main() -> None:
             digest = hashlib.sha256(payload).digest()
             if kind == 0 and len(payload) > 8:
                 inner_length = struct.unpack_from("<I", payload)[0]
-                inner_signature = payload[inner_length + 8:inner_length + 264]
-                print(f"inner image length=0x{inner_length:X}, signature_length={len(inner_signature)}")
-                if len(inner_signature) == 256:
-                    recovered_inner = pow(int.from_bytes(inner_signature, "big"), exponent, modulus).to_bytes(256, "big")
-                    print(f"inner_same_HP_key_padding={recovered_inner[:2].hex()}, inner_digest_matches={recovered_inner[-32:] == hashlib.sha256(payload[4:4 + inner_length]).digest()}")
+                inner_block = payload[inner_length + 8:inner_length + 264]
+                marker = payload[inner_length + 4:inner_length + 8]
+                print(f"inner image length=0x{inner_length:X}, opaque_block_length={len(inner_block)}, marker={marker.hex(' ')}")
+                if len(inner_block) == 256:
+                    recovered_inner = pow(int.from_bytes(inner_block, "big"), exponent, modulus).to_bytes(256, "big")
+                    print(f"candidate_known_key_prefix={recovered_inner[:2].hex()}, candidate_digest_matches={recovered_inner[-32:] == hashlib.sha256(payload[4:4 + inner_length]).digest()}")
+                    print("Inner block purpose and device-side enforcement are unproven; this failed candidate-key test does not establish a signature.")
             for block_offset in range(4, len(trailer), 256):
                 signature = trailer[block_offset:block_offset + 256]
                 if len(signature) != 256:

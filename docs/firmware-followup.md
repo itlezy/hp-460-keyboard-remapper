@@ -117,14 +117,18 @@ Ash 1.2.0 contains:
 | record 0 | `0x00000`, length `0x160A8` | signed firmware payload |
 | payload | `0x00009`, length `0x15F9B` | nested image package |
 | nested image | `0x0000D`, length `0x15E93` | ARM application and data |
-| inner 256-byte block | `0x15EA4` | separate validation data; meaning unresolved |
+| inner 256-byte block | `0x15EA4` | opaque trailer data; purpose unproven |
 | outer signature | `0x15FA8` | verifies using the embedded HPAC key |
 | record 1 | `0x160A8`, length `0x10D` | empty metadata payload with its own signature |
 | record 1 signature | `0x160B5` | also verifies using the embedded HPAC key |
 
 Changing the four branch bytes makes the outer payload digest disagree with
-the existing signature. The inner block does not decode using that same key.
-Its format/key and the device's validation behavior remain unresolved.
+the existing signature. Applying that same public-key operation to the inner
+block does not recover a matching digest. This failed candidate-key test does
+not establish that the block is a signature: its purpose is unproven. No
+device routine checking this block has been identified, and device enforcement
+has not been demonstrated. References to an "inner validator" in earlier
+discussion were a hypothesis, not a recovered function.
 
 The packet receiver also handles distinct remote Protocol, Flash, Security,
 Format and FWData errors. This shows that the host supports a device-side
@@ -153,9 +157,10 @@ Primary references:
 1. Scanner lookup is now confirmed: it reads a fixed 16-by-8 flash table directly.
    No RAM table indirection is present in that lookup. See the later
    [scanner and development-loader report](scan-and-dev-loader.md).
-2. Trace Ash's OTA dispatch and inner-block validator. Determine whether those
+2. Trace Ash's OTA dispatch to determine whether any device-side validation
+   exists and what consumes the opaque trailer. Establish whether the relevant
    routines execute in the application, copied RAM, or controller ROM. Compare
-   them with the documented PixArt command values; inspect any readback command
+   them with documented PixArt command values; inspect any readback command
    before using it.
 3. The local `.FW2` development loader is now traced: its inclusion flag disables
    the outer signature check when loading a local file. An x64 emulator replay
