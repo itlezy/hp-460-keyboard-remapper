@@ -184,21 +184,36 @@ def read_notifications(api: hp460.WindowsHidApi, selected: hp460.HidDevice,
 
 
 def run(args: argparse.Namespace) -> int:
-    if not args.no_kill_hpac:
-        ensure_hpac_closed()
-    api, devices, selected = hp460.open_selected_device(args.device_index)
-    try:
-        ensure_clean_state(api, selected)
-        load_mask_program(api, selected, args.notifications)
-        if args.dry_run:
-            print("Clean state applied and bounded mask program loaded.")
+    while True:
+        try:
+            if not args.no_kill_hpac:
+                ensure_hpac_closed()
+            api, devices, selected = hp460.open_selected_device(args.device_index)
+        except KeyboardInterrupt:
             return 0
-        read_notifications(api, selected, args.reload_seconds, args.notifications,
-                           observe=args.observe, seconds=args.seconds)
-        return 0
-    finally:
-        for device in devices:
-            api.close(device)
+        except Exception as exc:
+            print(f"Device not ready: {exc}", flush=True)
+            time.sleep(args.reconnect_seconds)
+            continue
+        try:
+            ensure_clean_state(api, selected)
+            load_mask_program(api, selected, args.notifications)
+            if args.dry_run:
+                print("Clean state applied and bounded mask program loaded.")
+                return 0
+            read_notifications(api, selected, args.reload_seconds, args.notifications,
+                               observe=args.observe, seconds=args.seconds)
+            if args.seconds is not None:
+                return 0
+            print("Notification stream stopped; reconnecting.", flush=True)
+        except KeyboardInterrupt:
+            return 0
+        except Exception as exc:
+            print(f"Runtime error; reconnecting: {exc}", flush=True)
+        finally:
+            for device in devices:
+                api.close(device)
+        time.sleep(args.reconnect_seconds)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -206,6 +221,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--device-index", type=int, default=0)
     parser.add_argument("--notifications", type=int, default=127)
     parser.add_argument("--reload-seconds", type=float, default=1.0)
+    parser.add_argument("--reconnect-seconds", type=float, default=3.0)
     parser.add_argument("--observe", action="store_true",
                         help="decode and print the mask stream without injecting keys")
     parser.add_argument("--seconds", type=float, default=None,
