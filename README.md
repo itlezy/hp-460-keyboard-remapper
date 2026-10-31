@@ -12,6 +12,11 @@ layer. HPAC's outer firmware signatures are now independently verified, and a
 modified image fails that check. A physical keyboard flash dump and a usable
 installation/recovery path are still pending.
 
+The later [scanner and local-loader analysis](docs/scan-and-dev-loader.md)
+confirms the fixed flash lookup and an HPAC development flag that can skip
+the outer signature check for local `.FW2` loading. Device-side validation
+and flash readback are still unresolved.
+
 The Fn Lock control is proven and works both immediately and at keyboard
 startup:
 
@@ -30,7 +35,7 @@ tested keyboard behaves as follows:
 | Page Up | Brightness Up (`0x006F`) | native Page Up |
 | Page Down | Brightness Down (`0x0070`) | native Page Down |
 
-HPAC's Ash UI exposes only F1–F12. Ash 1.2.0 nevertheless contains a 13-by-10
+HPAC's Ash UI exposes only F1–F12. Ash 1.2.0 nevertheless contains a 16-by-8
 physical-matrix table with virtual keycodes `0x0100–0x0112`: F1–F12 followed by
 Stamp, Insert, Delete, Home, End, Page Up, and Page Down. Deeper disassembly
 shows that these virtual codes are layer inputs, not automatically equivalent
@@ -61,7 +66,7 @@ solution.
 - Safely enabling HPAC's hidden developer packet logger
 - Building and decoding HPAC button-program packets for research
 - Preserving HPAC's non-JSON settings trailer
-- Reproducing the Ash 1.2.0 image map, runtime-data decompression, 13-by-10
+- Reproducing the Ash 1.2.0 image map, runtime-data decompression, 16-by-8
   physical keymap, and 24-way special-key dispatcher offline
 
 The tool does not disable/restart PnP devices and does not modify firmware.

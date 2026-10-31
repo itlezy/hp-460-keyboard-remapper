@@ -25,12 +25,14 @@ def main() -> None:
             stream.write(result.stdout)
         print(name)
 
-    for address, length in ((0x1400E1D00, 0x200), (0x1400E1F00, 0x19D), (0x1400F4390, 0x52B), (0x1400E55A0, 0x250), (0x1400E57F0, 0x2EA), (0x1400FE330, 0x7B0)):
+    for address, length in ((0x1400E1D00, 0x200), (0x1400E1F00, 0x19D), (0x1400F4390, 0x52B), (0x1400E55A0, 0x250), (0x1400E57F0, 0x2EA), (0x1400FE330, 0x7B0), (0x1400FB190, 0x640), (0x1400F8FC0, 0x108)):
         save(f"hpac-{address:X}.asm.txt", [sys.executable, project / "hpac_static.py", args.hpac, "--function", hex(address), "--bytes", hex(length)])
-    for address, count in ((0x100072F8, 260), (0x10004284, 70), (0x100038B4, 150)):
+    for address, count in ((0x100072F8, 260), (0x10004284, 70), (0x100038B4, 150), (0x10002D5C, 96), (0x100031D8, 95)):
         save(f"ash-{address:X}.asm.txt", [args.rizin, "-q", "-a", "arm", "-b", "16", "-m", "0x0FFFFFF3", "-e", "asm.cpu=cortexm", "-e", "scr.color=0", "-c", f"pd {count} @ {address}", args.firmware])
     save("native-branch-emulation.txt", [sys.executable, project / "experiments/validate_native_branch.py", args.firmware])
     save("signed-container-verification.txt", [sys.executable, project / "experiments/inspect_signed_container.py", args.hpac, args.firmware])
+    save("matrix-scanner-emulation.txt", [sys.executable, project / "experiments/validate_matrix_scanner.py", args.firmware])
+    save("hpac-local-flag-emulation.txt", [sys.executable, project / "experiments/validate_hpac_local_flag.py", args.hpac, args.firmware])
     print("Local reports exported; proprietary disassembly remains ignored by Git.")
 
 

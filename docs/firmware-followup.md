@@ -30,7 +30,7 @@ to the native insertion block. F1–F12 keep their existing native path with Fn
 Lock on. It passes the single-key function test for all 256 modifier masks.
 
 The user's revised requirement allows a simpler alternative: change the 19
-special matrix entries at `0x10013820` to ordinary USB keyboard usages.
+special matrix entries at `0x10013822` to ordinary USB keyboard usages.
 
 ```text
 0100..010B -> 003A..0045  F1..F12
@@ -150,16 +150,17 @@ Primary references:
 
 ## Concrete next plan
 
-1. Trace the scanner's matrix lookup to confirm it uses the flash table directly
-   and identify any RAM copy or writable override. A verified RAM override could
-   permit a reversible runtime test without replacing signed firmware.
+1. Scanner lookup is now confirmed: it reads a fixed 16-by-8 flash table directly.
+   No RAM table indirection is present in that lookup. See the later
+   [scanner and development-loader report](scan-and-dev-loader.md).
 2. Trace Ash's OTA dispatch and inner-block validator. Determine whether those
    routines execute in the application, copied RAM, or controller ROM. Compare
    them with the documented PixArt command values; inspect any readback command
    before using it.
-3. Trace HPAC's `scannFWDir`, `includeFW2` and `openLocalFW2Dir` development
-   features. Local file loading is useful for replaying host validation but does
-   not itself disable signatures or expose flash memory.
+3. The local `.FW2` development loader is now traced: its inclusion flag disables
+   the outer signature check when loading a local file. An x64 emulator replay
+   confirms the isolated checker accepts the edited payload in this mode.
+   Device validation remains separate. See the later report for addresses.
 4. If a bounded memory-read command is found, read a small known application
    range twice, compare it against public Ash bytes, then expand to a full dump.
    Save device-specific pairing/configuration data privately, outside Git.
