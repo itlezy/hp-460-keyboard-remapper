@@ -8,6 +8,7 @@ license = { text = "MIT" }
 [project.scripts]
 hp460 = "hp460:main"
 hpac-dev-mode = "hpac_dev_mode:main"
+hp460-firmware-analysis = "firmware_analysis:main"
 
 [tool.setuptools]
-py-modules = ["hp460", "hpac_dev_mode"]
+py-modules = ["hp460", "hpac_dev_mode", "firmware_analysis"]
