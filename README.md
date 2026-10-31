@@ -5,6 +5,11 @@ Multi-Device Bluetooth Keyboard** (`VID 03F0`, `PID 814A`).
 
 ## Current status
 
+Newest reassessment: [goal, evidence, and current plan](docs/current-plan.md).
+The selected path is a two-halfword firmware patch that makes the navigation
+cluster native while preserving F1-F12 modifiers; it requires a confirmed
+safe flash and recovery procedure before anything is written.
+
 Newest finding: [stock native-mode flag and stronger options](docs/native-mode-and-nuclear-options.md).
 A separate RAM flag plus Fn Lock off makes the unmodified transformer emit
 native F1–F12 and navigation usages in 19,456 offline ARM runs. No live setter
@@ -156,6 +161,7 @@ edited image is not expected to pass the stock updater.
 
 ## Documentation
 
+- [Goal, evidence, and current plan](docs/current-plan.md)
 - [Work-laptop Fn Lock procedure](docs/work-laptop.md)
 - [HPAC developer mode and packet log](docs/hpac-dev-mode.md)
 - [Vendor HID protocol and slot experiment](docs/protocol.md)
