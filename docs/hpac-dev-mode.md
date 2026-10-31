@@ -69,11 +69,11 @@ supportDoublePress:0 supportDownUpPress:0 supportSimulate:1)
 ```
 
 `nbProg:24` initially suggested that HPAC's 12-key Ash UI merely hid physical
-navigation-key slots. Static analysis confirmed a generic 24-entry engine, but
-controlled tests showed the important hardware-path limitation: entries
-12–23 accepted and returned programs while the Ash navigation keys did not
-enter those configurable bits. `nb:0` meant no custom button descriptors were
-stored at startup.
+navigation-key slots. Static analysis confirmed this structurally: the Ash
+matrix uses virtual codes `0x010C–0x0112` for program IDs `12–18`. A controlled
+write returned those descriptors but did not change the first key test, so the
+remaining problem is activation semantics rather than absent IDs. `nb:0` meant
+no custom button descriptors were stored at startup.
 
 ## Privacy before publication
 

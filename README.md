@@ -23,19 +23,20 @@ tested keyboard behaves as follows:
 | Page Up | Brightness Up (`0x006F`) | native Page Up |
 | Page Down | Brightness Down (`0x0070`) | native Page Down |
 
-HPAC reports 24 programmable button entries, but experimental programs written
-to entries `12–23` did not control these physical keys on the Ash/460 firmware.
-Static firmware analysis now explains why this was a tempting dead end: the
-generic firmware really has a 24-bit custom-program engine and entries `12–18`
-really have Insert/Home/Page Up/Delete/End/Page Down defaults. The Ash/460
-matrix path does not expose the tested physical keys through those configurable
-bits. The records were accepted into the active profile, returned in multipart
-configuration replies, and then cleared. The project deliberately does not
-expose a misleading `nav apply` command.
+HPAC's Ash UI exposes only F1–F12, but that is an application restriction, not
+the complete firmware map. Ash 1.2.0 contains a 13-by-10 physical-matrix table
+with virtual keycodes `0x0100–0x0112`. They map exactly to programmable IDs
+`0–18`: F1–F12 followed by Stamp, Insert, Home, Page Up, Delete, End, and Page
+Down. The same IDs feed the 24-bit custom-program filter before the compiled
+default dispatcher.
 
-An earlier apparent success was disproved by controlled layer tests. The
-corrected negative result and raw evidence are preserved here because they
-substantially narrow the next phase of research.
+An earlier live experiment wrote and read back programs in IDs `12–18`, but
+the five tested keys did not change on either layer. That negative observation
+is preserved, but the later matrix disassembly disproves its former
+interpretation that these physical keys bypass the programmable path. The
+remaining question is which profile/layer/apply condition the experiment
+missed. Until a reversible retest answers that, the project does not expose a
+premature `nav apply` command.
 
 ## What works
 
@@ -45,8 +46,8 @@ substantially narrow the next phase of research.
 - Safely enabling HPAC's hidden developer packet logger
 - Building and decoding HPAC button-program packets for research
 - Preserving HPAC's non-JSON settings trailer
-- Reproducing the Ash 1.2.0 image map, runtime-data decompression, and 24-way
-  special-key dispatcher offline
+- Reproducing the Ash 1.2.0 image map, runtime-data decompression, 13-by-10
+  physical keymap, and 24-way special-key dispatcher offline
 
 The tool does not disable/restart PnP devices and does not modify firmware.
 
@@ -95,18 +96,18 @@ Home and the firmware macro can be intercepted in user mode, but:
 - Raw Input can identify devices/usages but cannot suppress the original event
   system-wide.
 
-The remaining keyboard-side route is the matrix-to-report path before the
-24-bit configurable mask. A firmware patch is technically conceivable, but the
-public updater container ends in three 256-byte authentication-sized blocks;
-an ordinary edited image is therefore not expected to pass the stock update
-path. Hardware debug access and a recovery method must be established before
-any write experiment.
+The keyboard-side route is now identified: virtual keycodes `0x010C–0x0112`
+correspond to programmable IDs `12–18`. The next step is to resolve the runtime
+profile/layer condition and repeat one reversible program/clear cycle. A
+firmware patch is not justified while this built-in route remains available;
+the public updater container also ends in three 256-byte authentication-sized
+blocks, so an ordinary edited image is not expected to pass the stock updater.
 
 ## Documentation
 
 - [Work-laptop Fn Lock procedure](docs/work-laptop.md)
 - [HPAC developer mode and packet log](docs/hpac-dev-mode.md)
-- [Vendor HID protocol and negative slot experiment](docs/protocol.md)
+- [Vendor HID protocol and slot experiment](docs/protocol.md)
 - [Reverse-engineering notes](docs/reverse-engineering.md)
 - [Firmware notes and hashes](docs/firmware.md)
 - [Sanitized HPAC startup capture](captures/hpac-startup-sanitized.txt)

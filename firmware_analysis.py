@@ -25,6 +25,9 @@ RUNTIME_DATA_DESTINATION = 0x20001564
 RUNTIME_DATA_SIZE = 0x0C3C
 BUTTON_MAP_VA = 0x100139A6
 BUTTON_DISPATCH_TABLE_VA = 0x1000F2F0
+KEY_MATRIX_VA = 0x10013820
+KEY_MATRIX_ROWS = 13
+KEY_MATRIX_COLUMNS = 10
 
 
 BUTTON_ACTIONS = (
@@ -52,6 +55,28 @@ BUTTON_ACTIONS = (
     "modifier + keyboard usage 0x07",
     "modifier + keyboard usage 0x04",
     "modifier + keyboard usage 0x0F",
+)
+
+VIRTUAL_KEY_NAMES = (
+    "F1",
+    "F2",
+    "F3",
+    "F4",
+    "F5",
+    "F6",
+    "F7",
+    "F8",
+    "F9",
+    "F10",
+    "F11",
+    "F12",
+    "Stamp / Print Screen",
+    "Insert",
+    "Home",
+    "Page Up",
+    "Delete",
+    "End",
+    "Page Down",
 )
 
 
@@ -155,6 +180,43 @@ def parse_button_map(data: bytes) -> tuple[int, ...]:
     return mapping
 
 
+def parse_key_matrix(data: bytes) -> tuple[tuple[int, ...], ...]:
+    """Decode the Ash 13-by-10 physical-matrix usage table."""
+    offset = va_to_file_offset(KEY_MATRIX_VA)
+    count = KEY_MATRIX_ROWS * KEY_MATRIX_COLUMNS
+    byte_count = count * 2
+    raw = data[offset : offset + byte_count]
+    if len(raw) != byte_count:
+        raise ValueError("truncated keyboard matrix table")
+    values = struct.unpack(f"<{count}H", raw)
+    return tuple(
+        tuple(values[index : index + KEY_MATRIX_COLUMNS])
+        for index in range(0, count, KEY_MATRIX_COLUMNS)
+    )
+
+
+def virtual_key_positions(
+    matrix: tuple[tuple[int, ...], ...],
+) -> tuple[tuple[int, int, int], ...]:
+    """Return ``(button_id, row, column)`` for virtual codes 0x100..0x112."""
+    positions: list[tuple[int, int, int]] = []
+    for button_id in range(len(VIRTUAL_KEY_NAMES)):
+        code = 0x0100 + button_id
+        matches = [
+            (row, column)
+            for row, values in enumerate(matrix)
+            for column, value in enumerate(values)
+            if value == code
+        ]
+        if len(matches) != 1:
+            raise ValueError(
+                f"virtual key 0x{code:04X} occurs {len(matches)} times in matrix"
+            )
+        row, column = matches[0]
+        positions.append((button_id, row, column))
+    return tuple(positions)
+
+
 def parse_dispatch_targets(data: bytes) -> tuple[int, ...]:
     offset = va_to_file_offset(BUTTON_DISPATCH_TABLE_VA)
     count = data[offset]
@@ -191,6 +253,8 @@ def report(path: Path) -> str:
     digest = hashlib.sha256(data).hexdigest()
     header = parse_header(data)
     runtime_data, compressed_length = decompress_runtime_data(data)
+    key_matrix = parse_key_matrix(data)
+    key_positions = virtual_key_positions(key_matrix)
     button_map = parse_button_map(data)
     dispatch_targets = parse_dispatch_targets(data)
 
@@ -214,8 +278,29 @@ def report(path: Path) -> str:
         f"  compressed bytes consumed: 0x{compressed_length:X}",
         f"  expanded bytes: 0x{len(runtime_data):X}",
         "",
-        "authentication-sized opaque tail blocks:",
+        f"keyboard matrix ({KEY_MATRIX_ROWS} rows x {KEY_MATRIX_COLUMNS} columns):",
     ]
+    for row, values in enumerate(key_matrix):
+        lines.append(f"  row {row:2d}: " + " ".join(f"{value:04X}" for value in values))
+
+    lines.extend(
+        [
+            "",
+            "matrix virtual keys and programmable IDs:",
+        ]
+    )
+    for button_id, row, column in key_positions:
+        lines.append(
+            f"  0x{0x100 + button_id:04X} -> ID {button_id:2d} "
+            f"at row {row:2d}, column {column}: {VIRTUAL_KEY_NAMES[button_id]}"
+        )
+
+    lines.extend(
+        [
+            "",
+            "authentication-sized opaque tail blocks:",
+        ]
+    )
     for offset, length in authentication_sized_blocks(data):
         lines.append(f"  file 0x{offset:X}..0x{offset + length:X} ({length} bytes)")
 

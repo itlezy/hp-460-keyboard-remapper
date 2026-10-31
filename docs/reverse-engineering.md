@@ -18,7 +18,7 @@ used standard Microsoft HID drivers; no HP filter was required.
 HPAC contains device classes named `HPACAsh400`, `HPACAsh405`, `HPACAsh460`,
 and `HPACAsh475`. The tested 460 identifies itself with codename `Ash`.
 
-## The 24-entry engine and the Ash limitation
+## The 24-entry engine and the hidden Ash keys
 
 HPAC's embedded Ash QML exposes only button IDs `0–11`, corresponding to F1
 through F12. The keyboard's configuration response nevertheless reports
@@ -27,9 +27,8 @@ address descriptors by `(buttonId, host, pressType)` without enforcing the 12
 QML entries.
 
 Related HP keyboard QML, particularly an Ivy layout, uses IDs `12–18` for a
-top-row special key, Insert, Home, Page Up, Delete, End, and Page Down. This
-made a matching Ash layout plausible, but the controlled experiment rejected
-it:
+top-row special key, Insert, Home, Page Up, Delete, End, and Page Down. A first
+controlled Ash experiment appeared to reject the matching layout:
 
 - Ash accepted native-key programs in IDs `12`, `14`, `15`, `17`, and `18`;
 - a configuration query returned those records exactly;
@@ -40,16 +39,17 @@ it:
 Subsequent firmware analysis established that this is a real 24-entry engine,
 not merely storage capacity. Its entry-to-special-bit table is an identity map,
 and the command handler updates the same active-profile container consulted at
-keypress time. The default switch even contains native Insert/Home/Page
+keypress time. The default switch contains native Insert/Home/Page
 Up/Delete/End/Page Down cases at entries `13–18`.
 
-That still does not make the physical Ash keys programmable. The custom engine
-can only intercept bits supplied to it by the earlier matrix/report path. The
-controlled test proves that the five tested physical keys are not supplied as
-the hypothesized configurable bits on either layer. This is consistent with
-HP's Ash UI and product specification exposing only F1–F12. The experiment was
-cleaned up by clearing IDs `12–23`; the keyboard then returned an empty custom
-configuration.
+More importantly, the Ash physical-matrix table at `0x10013820` contains every
+virtual code from `0x0100` through `0x0112` exactly once. Codes `0x010C–0x0112`
+are the Stamp-through-Page-Down positions, and subtracting `0x0100` gives IDs
+`12–18`. This disproves the former conclusion that the physical keys bypass
+the configurable mask. The negative live result remains valid evidence that
+the first write/test sequence missed an activation condition, not evidence
+that the IDs are disconnected. The experiment was cleaned up by clearing IDs
+`12–23`; the keyboard then returned an empty custom configuration.
 
 ## Native-key bytecode
 
@@ -94,11 +94,13 @@ flash or patch firmware.
 
 ## Productive next directions
 
+- Repeat one ID `12–18` write with a known-supported short-press program,
+  drain the full reply, reconnect/power-cycle, test both layers, and clear it.
 - Capture and decode reports from the additional vendor collections (report
   IDs 7, 8, and 9) while exercising both layers.
 - Correlate host/press-type values with HPAC's multi-host and long-press code.
-- Identify the Ash matrix-to-report decision that bypasses the configurable
-  special-bit path for the five target keys.
+- Identify the Fn Lock/layer decision that turns virtual matrix codes into the
+  configurable special-key mask.
 - Identify the exact PixArt controller/package and non-destructive debug pads;
   obtain a full backup and prove recovery before attempting any flash write.
 - Prototype a device-specific HID/filter interception only if the pre-HID

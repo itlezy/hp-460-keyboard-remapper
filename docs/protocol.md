@@ -54,9 +54,9 @@ For Button packets, observed commands were:
 
 The startup config reply reported `nbProgrammableButtons:24` and no custom
 descriptors. Static analysis later confirmed a 24-entry identity map inside
-the generic custom-program engine. It still is not evidence that every
-physical Ash/460 key is routed into those 24 special bits. The decoded startup
-exchange is in `../captures/hpac-startup-sanitized.txt`.
+the custom-program engine. The Ash physical-matrix table independently maps
+virtual codes `0x0100–0x0112` to IDs `0–18`, including the navigation cluster.
+The decoded startup exchange is in `../captures/hpac-startup-sanitized.txt`.
 
 ## Query and multipart replies
 
@@ -115,11 +115,11 @@ packet uses size 5 and program length 0:
 06 00 0D 05 00 01 <id> <host> 00 00 02 00 00 00 00 00 00 00 00 00 00
 ```
 
-## Negative Ash/460 entry experiment
+## Ash/460 entry experiment and corrected interpretation
 
-A related HP keyboard layout suggested the hypothesis that IDs `12`, `14`,
-`15`, `17`, and `18` might represent Print Screen, Home, Page Up, End, and Page
-Down. Controlled testing disproved that hypothesis on the tested Ash/460:
+A related HP keyboard layout suggested that IDs `12`, `14`, `15`, `17`, and
+`18` represent Print Screen, Home, Page Up, End, and Page Down. The first
+controlled test produced a negative runtime result:
 
 1. Native-key programs for those usages were written to the five entries.
 2. The keyboard acknowledged the writes and returned all five records in a
@@ -141,10 +141,13 @@ The stable physical behavior with Fn Lock enabled was:
 | Page Up | Consumer Brightness Up `0x006F` | Page Up |
 | Page Down | Consumer Brightness Down `0x0070` | Page Down |
 
-The accepted entries are stored in the active configuration container, but the
-five physical Ash keys do not reach that container through the hypothesized
-special bits. They are therefore not an exposed navigation-key map for this
-hardware path. Raw observations are recorded in `../captures/reports.txt`.
+Later firmware disassembly changed the interpretation. The Ash matrix itself
+contains virtual codes `0x010C–0x0112`, which map exactly to program IDs
+`12–18`, and the custom filter consumes the same identity-mapped bits before
+the default dispatcher. Therefore the live result does not disprove the IDs;
+it shows that the test missed an apply, profile, layer, or refresh condition.
+Raw observations remain recorded in `../captures/reports.txt` and must not be
+rewritten as a success.
 
 ## Fn Lock
 

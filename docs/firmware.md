@@ -42,6 +42,27 @@ runtime function at `0x200003F5` has an inspectable flash alias at
 
 ## The 24-way custom-program engine
 
+Immediately before the programmable-button data, Ash 1.2.0 contains a
+13-by-10 little-endian physical-matrix table at `0x10013820`. Most entries are
+ordinary USB keyboard usages. Nineteen entries instead use a contiguous
+firmware-private range:
+
+| Virtual code | Program ID | Compiled meaning |
+| ---: | ---: | --- |
+| `0x0100–0x010B` | `0–11` | F1–F12 physical positions |
+| `0x010C` | `12` | Stamp / Print Screen position |
+| `0x010D` | `13` | Insert |
+| `0x010E` | `14` | Home |
+| `0x010F` | `15` | Page Up |
+| `0x0110` | `16` | Delete |
+| `0x0111` | `17` | End |
+| `0x0112` | `18` | Page Down |
+
+Each value in `0x0100–0x0112` occurs exactly once. Subtracting `0x0100`
+produces the same IDs used by HPAC descriptors and by the special-key bitmask.
+This is direct static evidence that the navigation cluster belongs to the
+same firmware engine even though HPAC's Ash QML exposes only IDs `0–11`.
+
 The custom-program filter at runtime `0x200003F5` runs before the default
 special-key dispatcher. It loops over 24 configuration entries and uses the
 table at `0x100139A6` to translate each entry to a bit in the incoming special
@@ -73,12 +94,14 @@ active-profile container that the runtime filter searches. A request host of
 zero is replaced with `active_profile + 1`; it is not an inactive namespace.
 This rules out the earlier host-field hypothesis.
 
-The important limitation is earlier in the pipeline. On the tested Ash/460,
-programs stored in entries `12–23` did not intercept the five physical keys on
-either layer. Therefore the generic 24-way engine and its navigation defaults
-exist, but the Ash/460 scan path does not present those tested keypresses as
-the corresponding configurable mask bits. HP's own product material likewise
-advertises only F1–F12 as programmable.
+The controlled live experiment that stored programs in entries `12–23` did
+not alter the five target keys on either layer. The physical-matrix table means
+that result cannot establish a bypass around the configurable bits: IDs
+`12–18` are explicitly present in Ash's own keymap. The experiment instead
+missed a runtime condition—most likely layer/profile selection, descriptor
+activation, or refresh—and needs to be repeated with one known-supported
+program while observing the complete reply and reconnect behavior. HP's
+product material advertises only F1–F12 because that is all its UI exposes.
 
 ## Updater authentication boundary
 
@@ -114,11 +137,12 @@ This confirms that the 21-byte `06 ...` Windows reports are implemented by the
 keyboard firmware itself. HPAC is a user-mode client of that firmware protocol,
 not a front end for a proprietary kernel driver.
 
-The target navigation behavior is compiled into code, not held in a simple
-plaintext user keymap. Capturing an HPAC-generated native-key program
-established the bytecode used by exposed programmable buttons, but writing
-that bytecode to other accepted configuration IDs did not alter the five
-target physical keys.
+The target navigation defaults are compiled into the dispatcher, while the
+physical matrix and custom descriptors select which action runs. Capturing an
+HPAC-generated native-key program established the bytecode used by exposed
+programmable buttons. Writing that bytecode to the hidden IDs was accepted but
+did not alter the first test, so activation semantics—not ID existence—remain
+the open issue.
 
 Do not flash a modified image to pursue this remap without first identifying
 the update validation, controller debug access, full-flash backup, and a tested
@@ -134,8 +158,8 @@ PYTHON.EXE firmware_analysis.py C:\path\to\Ash_1200.FW
 
 The command validates the container length and known SHA-256, prints the exact
 memory map and vector, expands the runtime initializer, locates the opaque tail
-blocks, and decodes the button map and jump targets. It is read-only and never
-opens a keyboard.
+blocks, and decodes the physical matrix, virtual-key IDs, button map, and jump
+targets. It is read-only and never opens a keyboard.
 
 ## External references
 

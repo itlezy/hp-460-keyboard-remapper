@@ -4,10 +4,15 @@ import unittest
 from firmware_analysis import (
     FILE_HEADER_SIZE,
     FILE_MAP_BASE,
+    KEY_MATRIX_COLUMNS,
+    KEY_MATRIX_ROWS,
+    KEY_MATRIX_VA,
     decompress_runtime_data,
     file_offset_to_va,
+    parse_key_matrix,
     parse_header,
     va_to_file_offset,
+    virtual_key_positions,
 )
 
 
@@ -45,6 +50,34 @@ class FirmwareAnalysisTests(unittest.TestCase):
         )
         self.assertEqual(output, b"ABCABC")
         self.assertEqual(consumed, 7)
+
+    def test_matrix_parser_decodes_rows_and_virtual_key_positions(self) -> None:
+        offset = va_to_file_offset(KEY_MATRIX_VA)
+        count = KEY_MATRIX_ROWS * KEY_MATRIX_COLUMNS
+        values = [0] * count
+        expected_positions = []
+        for button_id in range(19):
+            index = button_id * 3
+            values[index] = 0x0100 + button_id
+            expected_positions.append(
+                (button_id, index // KEY_MATRIX_COLUMNS, index % KEY_MATRIX_COLUMNS)
+            )
+        data = bytearray(offset + count * 2)
+        struct.pack_into(f"<{count}H", data, offset, *values)
+
+        matrix = parse_key_matrix(bytes(data))
+
+        self.assertEqual(len(matrix), KEY_MATRIX_ROWS)
+        self.assertTrue(all(len(row) == KEY_MATRIX_COLUMNS for row in matrix))
+        self.assertEqual(virtual_key_positions(matrix), tuple(expected_positions))
+
+    def test_virtual_key_positions_rejects_missing_code(self) -> None:
+        matrix = tuple(
+            tuple(0 for _ in range(KEY_MATRIX_COLUMNS))
+            for _ in range(KEY_MATRIX_ROWS)
+        )
+        with self.assertRaisesRegex(ValueError, "0x0100 occurs 0 times"):
+            virtual_key_positions(matrix)
 
 
 if __name__ == "__main__":
