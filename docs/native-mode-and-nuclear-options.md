@@ -1,5 +1,9 @@
 # Reassessment: native mode before host remapping
 
+Follow-up: [native-mode access audit](native-mode-access-audit.md) confirms the
+GPIO source and excludes the known settings callback as a setter. No live
+RAM-access mechanism has been established.
+
 The sampled VM companion is a research fallback, not a production-quality fix.
 Original-ARM emulation establishes its instructions, not reliable physical
 event capture or correct Windows modifier ordering. A stronger target is to
