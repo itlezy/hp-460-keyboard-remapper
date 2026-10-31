@@ -1,0 +1,18 @@
+# Sanitized HP Accessory Center 2.21.4522.0 startup packet log.
+# Host names, Bluetooth addresses, HID paths, and hardware/profile IDs were
+# replaced with placeholders. Timing prefixes are retained only as examples.
+
+0 USBStart DEVICE_HANDLE in:20 out:20 <HP_460_VENDOR_HID_PATH>
+983 USBout DEVICE_HANDLE QueryPacket sze:4 seq:0
+101 USBin DEVICE_HANDLE QueryPacketResponse sze:30 seq:2 ver:1200 bat BT Button timeouts protVer:0 update ExtraFlags:8 Ash0460 <DEVICE_ID>
+102 USBout Ash <DEVICE_ID> BatteryQueryPacket sze:8 seq:0 warn1:255 warn2:255 offTimeout:255 autoReport:25
+0 USBout Ash <DEVICE_ID> BTQueryPacket sze:5 seq:0 cmd:querry
+0 USBout Ash <DEVICE_ID> ButtonQueryPacket sze:7 seq:0 command:0 hostId:0
+0 USBout Ash <DEVICE_ID> TimeoutQueryPacket sze:7 seq:0
+0 USBin Ash <DEVICE_ID> BatteryReplyPacket sze:10 seq:0 warn1:255 warn2:254 offTimeout:254 autoReport:25 level:60 solar:42 lowBat
+0 USBout Ash <DEVICE_ID> DeviceSpecificPacket sze:15 seq:0 cmd:0 saveToFlash:0 0A000000000000000000
+4 USBout Ash <DEVICE_ID> DeviceSpecificPacket sze:16 seq:0 cmd:0 saveToFlash:0 0B000800000000000000FF
+44 USBin Ash <DEVICE_ID> BTReplyPacket sze:41 seq:3 dTimeout:253 pTimeout:253 iTimeout:253 p2Timeout:253 activeId:1 prettyName con:1 act:1 det:1 you:1 com:1 id:1 blink:0 <HOST_NAME> con:0 act:0 det:0 you:0 com:1 id:2 blink:0 BT 2 con:0 act:0 det:0 you:0 com:1 id:3 blink:0 BT 3
+28 USBin Ash <DEVICE_ID> ButtonReplyPacket sze:9 seq:0 command:0 nbProg:24 nb:0 hostId:1 config(nbProgrammableButtons:24 supportLongPress:0 supportDoublePress:0 supportDownUpPress:0 supportSimulate:1)
+15 USBin Ash <DEVICE_ID> DeviceSpecificReplyPacket sze:18 seq:0 cmd:0 0D000D00000000000000000301
+30 USBin Ash <DEVICE_ID> DeviceSpecificReplyPacket sze:18 seq:0 cmd:0 0D000D000000000000000003FF
