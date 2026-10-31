@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import argparse
 import ctypes
+import os
 import subprocess
 import sys
 import time
@@ -39,6 +40,7 @@ from experiments.key_mask_program import build_key_mask_program
 F_VKS = {index + 1: 0x70 + index for index in range(12)}
 KEYEVENTF_KEYUP = 0x0002
 HPAC_PROCESS = "HPAccessoryCenter.exe"
+AUTOSTART_NAME = "hp460-companion.vbs"
 
 
 ULONG_PTR = ctypes.c_size_t
@@ -103,6 +105,33 @@ def ensure_hpac_closed() -> None:
     )
     if result.returncode not in (0, 128):
         raise RuntimeError(f"Failed to close {HPAC_PROCESS}: {result.stderr.strip()}")
+
+
+def startup_dir() -> Path:
+    appdata = Path(os.environ.get("APPDATA", str(Path.home() / "AppData" / "Roaming")))
+    return appdata / "Microsoft" / "Windows" / "Start Menu" / "Programs" / "Startup"
+
+
+def install_autostart() -> Path:
+    if getattr(sys, "frozen", False):
+        args = f'"""{sys.executable}"""'
+    else:
+        args = f'"""{sys.executable}"" ""{Path(__file__).resolve()}"""'
+    target = startup_dir() / AUTOSTART_NAME
+    target.write_text(
+        'Set W = CreateObject("WScript.Shell")\n'
+        f"W.Run {args}, 0, False\n",
+        encoding="utf-8",
+    )
+    return target
+
+
+def uninstall_autostart() -> bool:
+    target = startup_dir() / AUTOSTART_NAME
+    if target.exists():
+        target.unlink()
+        return True
+    return False
 
 
 def load_mask_program(api: hp460.WindowsHidApi, selected: hp460.HidDevice,
@@ -230,11 +259,22 @@ def build_parser() -> argparse.ArgumentParser:
                         help="apply clean state and load one program, then exit without the loop")
     parser.add_argument("--no-kill-hpac", action="store_true",
                         help="do not terminate HP Accessory Center before opening the device")
+    parser.add_argument("--install-autostart", action="store_true",
+                        help="install a hidden Startup launcher for this helper")
+    parser.add_argument("--uninstall-autostart", action="store_true",
+                        help="remove the Startup launcher if present")
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
-    return run(build_parser().parse_args(argv))
+    args = build_parser().parse_args(argv)
+    if args.install_autostart:
+        print(f"Installed auto-start: {install_autostart()}")
+        return 0
+    if args.uninstall_autostart:
+        print("Removed auto-start." if uninstall_autostart() else "No auto-start entry was present.")
+        return 0
+    return run(args)
 
 
 if __name__ == "__main__":
