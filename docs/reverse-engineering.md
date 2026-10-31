@@ -42,7 +42,7 @@ and the command handler updates the same active-profile container consulted at
 keypress time. The default switch contains native Insert/Home/Page
 Up/Delete/End/Page Down cases at entries `13–18`.
 
-The Ash physical-matrix table at `0x10013820` contains every virtual code from
+The Ash physical-matrix table at `0x10013822` contains every virtual code from
 `0x0100` through `0x0112` exactly once. Codes `0x010C–0x0112` represent Stamp,
 Insert, Delete, Home, End, Page Up, and Page Down. These are matrix action
 numbers, however, not proof of matching HPAC program slots. The experiment was

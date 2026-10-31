@@ -26,9 +26,9 @@ RUNTIME_DATA_SIZE = 0x0C3C
 BUTTON_MAP_VA = 0x100139A6
 BUTTON_DISPATCH_TABLE_VA = 0x1000F2F0
 DIRECT_DISPATCH_TABLE_VA = 0x100038D8
-KEY_MATRIX_VA = 0x10013820
-KEY_MATRIX_ROWS = 13
-KEY_MATRIX_COLUMNS = 10
+KEY_MATRIX_VA = 0x10013822
+KEY_MATRIX_ROWS = 16
+KEY_MATRIX_COLUMNS = 8
 
 
 BUTTON_ACTIONS = (
@@ -209,7 +209,7 @@ def parse_button_map(data: bytes) -> tuple[int, ...]:
 
 
 def parse_key_matrix(data: bytes) -> tuple[tuple[int, ...], ...]:
-    """Decode the Ash 13-by-10 physical-matrix usage table."""
+    """Decode the scanner's 16-by-8 physical-matrix usage table."""
     offset = va_to_file_offset(KEY_MATRIX_VA)
     count = KEY_MATRIX_ROWS * KEY_MATRIX_COLUMNS
     byte_count = count * 2

@@ -15,7 +15,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from firmware_analysis import ASH_1200_SHA256, KEY_MATRIX_VA, parse_key_matrix, va_to_file_offset, virtual_key_positions
+from firmware_analysis import ASH_1200_SHA256, KEY_MATRIX_VA, KEY_MATRIX_COLUMNS, parse_key_matrix, va_to_file_offset, virtual_key_positions
 
 
 def main() -> None:
@@ -35,7 +35,7 @@ def main() -> None:
     matrix_image = bytearray(original)
     matrix_inputs = []
     for action, row, column in virtual_key_positions(parse_key_matrix(original)):
-        offset = va_to_file_offset(KEY_MATRIX_VA) + (row * 10 + column) * 2
+        offset = va_to_file_offset(KEY_MATRIX_VA) + (row * KEY_MATRIX_COLUMNS + column) * 2
         struct.pack_into("<H", matrix_image, offset, expected[action])
         matrix_inputs.append(struct.unpack_from("<H", matrix_image, offset)[0])
     results = []

@@ -43,7 +43,7 @@ runtime function at `0x200003F5` has an inspectable flash alias at
 ## The 24-way custom-program engine
 
 Immediately before the programmable-button data, Ash 1.2.0 contains a
-13-by-10 little-endian physical-matrix table at `0x10013820`. Most entries are
+16-by-8 little-endian physical-matrix table at `0x10013822`. Most entries are
 ordinary USB keyboard usages. Nineteen entries instead use a contiguous
 firmware-private range:
 
