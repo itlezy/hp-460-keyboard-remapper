@@ -33,10 +33,11 @@ This confirms that the 21-byte `06 ...` Windows reports are implemented by the
 keyboard firmware itself. HPAC is a user-mode client of that firmware protocol,
 not a front end for a proprietary kernel driver.
 
-The native button programs were not present as a simple plaintext default
-table in the updater image. They are likely generated or stored in writable
-device configuration. The safer route was to capture one HPAC-generated native
-key program and use the keyboard's documented-by-behavior configuration path.
+The default key-layer programs were not present as a simple plaintext table in
+the updater image. Capturing an HPAC-generated native-key program established
+the bytecode used by exposed programmable buttons, but writing that bytecode to
+other accepted configuration IDs did not alter the five target physical keys.
 
-Do not flash a downloaded image merely to apply this remap. The utility only
-writes supported runtime/configuration reports.
+Do not flash a downloaded image to pursue this remap without first identifying
+the update validation and recovery paths. This utility does not flash or patch
+firmware.

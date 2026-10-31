@@ -15,11 +15,10 @@ uses the vendor collection with:
 | Output report length | 21 bytes |
 | Report ID | `06` |
 
-The Windows device normally appears as `COL06`. The tool verifies the HID
-capabilities rather than relying on that collection number.
-
-HPAC imports the ordinary Windows HID APIs and opens this collection directly
-from user mode. No HP keyboard filter driver is involved.
+The Windows device normally appears as `COL06`. The tool checks the HID
+capabilities instead of relying on that collection number. HPAC opens this
+collection directly with the ordinary Windows HID APIs; no HP keyboard filter
+driver is involved.
 
 ## HP update packet framing
 
@@ -31,8 +30,8 @@ class = ((byte[2] & 0x0F) << 8) | byte[1]
 size  = ((byte[4] & 0x03) << 8) + byte[3] + 4
 ```
 
-Indexes above are indexes in the complete 21-byte HID report. Relevant class
-keys include:
+Indexes above refer to the complete 21-byte HID report. Relevant class keys
+include:
 
 | Key | HPAC name |
 | --- | --- |
@@ -53,27 +52,50 @@ For Button packets, observed commands were:
 | `1` | host to keyboard | set or clear a button program |
 | `2` | keyboard to host | button notification path |
 
-The startup config reply reported 24 programmable slots and no custom
-descriptors. The decoded startup exchange is preserved in
-`captures/hpac-startup-sanitized.txt`.
+The startup config reply reported `nbProgrammableButtons:24` and no custom
+descriptors. This is a count or capacity in the protocol; it is not evidence
+that button IDs `0–23` map one-to-one to the keyboard's physical keys. The
+decoded startup exchange is in `../captures/hpac-startup-sanitized.txt`.
+
+## Query and multipart replies
+
+The bootstrap query captured from HPAC was:
+
+```text
+06 F3 0C 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+```
+
+Its `QueryPacketResponse` arrived in multiple input reports, beginning:
+
+```text
+06 F4 0C 1A 00 ...
+06 F4 0C 1A 04 ...
+```
+
+Button writes also produce multipart `ButtonReplyPacket` responses. One
+observed response had decoded size 49 and three fragments. A client that sends
+several writes must drain every response fragment before issuing the next
+write. The current command-line interface deliberately exposes only the
+independent, proven Fn Lock operation; its packet builders for button programs
+are research helpers, not an apply command.
 
 ## Button descriptor
 
-The command-1 packet layout used by this project is:
+The command-1 packet layout observed from HPAC is:
 
 | Report index | Meaning |
 | ---: | --- |
 | `0` | HID report ID `06` |
 | `1..4` | ButtonQuery framing (`00 0D 09 00`) |
 | `5` | command `01` |
-| `6` | button slot |
-| `7` | host (`00`) |
+| `6` | button ID / configuration entry |
+| `7` | host (`00` in the capture) |
 | `8` | press type (`00`, normal press) |
 | `9` | program length (`04`) |
 | `10..13` | program bytes |
 | `14..20` | observed transport trailer/padding, preserved verbatim |
 
-A captured HPAC assignment of native F12 to visible slot 11 produced:
+A captured HPAC assignment of native F12 to visible button ID 11 produced:
 
 ```text
 06 00 0D 09 00 01 0B 00 00 04 F8 00 45 00 02 00 00 00 00 00 00
@@ -85,26 +107,42 @@ The four-byte native-key program is:
 F8 00 <USB keyboard usage> 00
 ```
 
-The HID usages needed here are contiguous standard Keyboard/Keypad Page
-usages:
-
-| Key | Hidden slot | Usage | Program |
-| --- | ---: | ---: | --- |
-| Print Screen | 12 | `46` | `F8 00 46 00` |
-| Home | 14 | `4A` | `F8 00 4A 00` |
-| Page Up | 15 | `4B` | `F8 00 4B 00` |
-| End | 17 | `4D` | `F8 00 4D 00` |
-| Page Down | 18 | `4E` | `F8 00 4E 00` |
-
-Slots 13 and 16 correspond to Insert and Delete and are intentionally left
-untouched.
-
-An empty program restores a slot's firmware default. The packet uses size 5,
-program length 0, and the same observed trailer:
+For example, usage `45` is F12. An empty program clears a custom entry. The
+packet uses size 5 and program length 0:
 
 ```text
-06 00 0D 05 00 01 <slot> 00 00 00 02 00 00 00 00 00 00 00 00 00 00
+06 00 0D 05 00 01 <id> <host> 00 00 02 00 00 00 00 00 00 00 00 00 00
 ```
+
+## Negative Ash/460 entry experiment
+
+A related HP keyboard layout suggested the hypothesis that IDs `12`, `14`,
+`15`, `17`, and `18` might represent Print Screen, Home, Page Up, End, and Page
+Down. Controlled testing disproved that hypothesis on the tested Ash/460:
+
+1. Native-key programs for those usages were written to the five entries.
+2. The keyboard acknowledged the writes and returned all five records in a
+   multipart configuration reply (`nb=5`).
+3. The same physical keys were tested with and without Fn. Their behavior did
+   not change.
+4. IDs `12–23` were then assigned unique F13–F24 usages. None of the target
+   physical keys emitted the corresponding event on either layer.
+5. Every experimental entry was cleared. The reply collapsed to the empty
+   configuration (`nb=0`).
+
+The stable physical behavior with Fn Lock enabled was:
+
+| Physical key | No Fn | Fn held |
+| --- | --- | --- |
+| Stamp / Print Screen | `Win+Space` firmware macro | Print Screen |
+| Home | Consumer `0x0192` / `VK_LAUNCH_APP2` | Home |
+| End | Esc | End |
+| Page Up | Consumer Brightness Up `0x006F` | Page Up |
+| Page Down | Consumer Brightness Down `0x0070` | Page Down |
+
+The accepted entries therefore belong to an unresolved configuration
+namespace or press path; they are not a physical navigation-key map for this
+firmware. Raw observations are recorded in `../captures/reports.txt`.
 
 ## Fn Lock
 
@@ -126,9 +164,5 @@ The On/On report is:
 HPAC describes the startup operation as `saveToFlash:1`. It changes a stored
 device setting; it is not a firmware rewrite.
 
-## Live verification
-
-The five command-1 reports were sent individually and Windows produced native
-Print Screen, Home, End, Page Up, and Page Down DOWN/UP events. After the
-keyboard was turned off and back on, all five events remained native. See
-`captures/reports.txt`.
+The On/On report was applied and the current layer was verified. This is the
+only persistent keyboard configuration operation exposed by the utility.

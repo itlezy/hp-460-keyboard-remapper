@@ -68,9 +68,10 @@ config(nbProgrammableButtons:24 supportLongPress:0
 supportDoublePress:0 supportDownUpPress:0 supportSimulate:1)
 ```
 
-`nbProg:24` was the key evidence that HPAC's 12-key Ash UI hides additional
-programmable slots. `nb:0` meant no custom button descriptors were stored at
-that point, so every slot was using its firmware default.
+`nbProg:24` initially suggested that HPAC's 12-key Ash UI hid physical
+navigation-key slots. Controlled tests disproved that interpretation: entries
+12–23 accepted and returned programs but did not control Stamp/Home/End/Page
+Up/Page Down. `nb:0` meant no custom button descriptors were stored at startup.
 
 ## Privacy before publication
 

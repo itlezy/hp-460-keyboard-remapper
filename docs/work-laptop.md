@@ -1,94 +1,51 @@
 # Work-laptop procedure
 
-This is the conservative procedure for programming a second HP 460 keyboard.
+The current project can reproduce the proven persistent Fn Lock configuration
+on another HP 460. Primary-layer navigation remapping remains unresolved.
 
 ## Preparation
 
-1. Check that running local Python utilities is permitted by the laptop's
-   security policy.
-2. Install Python 3.10 or newer if it is not already available.
-3. Pair and connect the HP 460 keyboard over Bluetooth.
-4. Keep the laptop's built-in keyboard or another USB keyboard available.
-5. Copy this repository to a local directory.
-6. Exit HP Accessory Center completely, including its tray process.
-7. Exit AutoHotkey and other keyboard-remapping or screenshot utilities during
-   verification.
+1. Confirm that local Python utilities are allowed by the laptop's policy.
+2. Install Python 3.10 or newer if needed.
+3. Pair and connect the HP 460 over Bluetooth.
+4. Keep the built-in or a USB keyboard available.
+5. Copy this repository locally.
+6. Fully exit HP Accessory Center before running the HID tool.
 
-The HP software is not required for the programmer. It is useful only for
-comparison, firmware updates, or its packet logger.
-
-## Identify the control collection
+## Identify and configure
 
 ```powershell
 PYTHON.EXE hp460.py devices
+PYTHON.EXE hp460.py fn-lock on --dry-run
+PYTHON.EXE hp460.py fn-lock on
 ```
 
-Expected output resembles:
+Expected device output resembles:
 
 ```text
 [0] HP 460 control collection, firmware=0x04B0, usage=FF05:0001
 ```
 
-If the tool reports that the interface is busy, close HPAC and retry. Do not
-disable or remove the keyboard in Device Manager.
+The Fn Lock command sets both current and startup state to on. It does not
+program Stamp, Home, End, Page Up, or Page Down.
 
-## Preview and apply
-
-```powershell
-PYTHON.EXE hp460.py nav plan
-PYTHON.EXE hp460.py setup
-```
-
-`nav plan` is non-mutating. It prints the five reports that `nav apply` will
-send. `setup` is the canonical configuration: it enables Fn Lock for both the
-current session and startup, then programs all five native keys. To preview the
-complete setup without opening the keyboard, run:
-
-```powershell
-PYTHON.EXE hp460.py setup --dry-run
-```
-
-## Verify
+## Verify the layer behavior
 
 ```powershell
 PYTHON.EXE hp460.py verify
 ```
 
-Without holding Fn, press:
-
-1. Stamp / Print Screen
-2. Home
-3. End
-4. Page Up
-5. Page Down
-
-The verifier should print one DOWN and one UP event for each native key. Stop
-it with Ctrl+C. Then turn the HP keyboard off, wait five seconds, turn it on,
-and repeat the test to confirm persistence.
-
-## Restore HP defaults
-
-```powershell
-PYTHON.EXE hp460.py nav restore
-```
-
-Restore sends an empty button program to each hidden slot, which is the same
-mechanism HPAC uses to return an exposed function key to its firmware default.
-
-To restore only one slot:
-
-```powershell
-PYTHON.EXE hp460.py nav restore --key page-up
-```
+With Fn Lock on, press the five keys without Fn and then with Fn held. On the
+tested 1.20.0 firmware, only the Fn-held path emits the native navigation keys.
 
 ## Troubleshooting
 
-- **No device found:** confirm that Bluetooth reports the keyboard as connected
-  and run `devices` again.
-- **Interface busy:** fully exit HPAC. Logging tools that open the vendor HID
-  collection may also need to be closed.
-- **Fn layer is reversed:** run `PYTHON.EXE hp460.py fn-lock on`.
-- **Unexpected result on another firmware:** stop, run `nav restore`, and save
-  an HPAC packet capture before experimenting further.
-- **Endpoint protection blocks HID access:** do not work around corporate
-  policy; request approval or run the tool on an authorized machine.
+- **No device found:** verify that Bluetooth reports the keyboard connected.
+- **Interface busy:** fully exit HPAC and retry.
+- **Fn Lock does not persist:** rerun `fn-lock on` and power-cycle the keyboard.
+- **Endpoint protection blocks HID access:** follow organizational policy; do
+  not bypass it.
+
+Do not use the experimental slot packets as a navigation-key solution. The
+Ash firmware accepted those records but did not associate entries `12–23` with
+the physical navigation cluster.

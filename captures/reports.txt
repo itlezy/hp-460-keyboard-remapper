@@ -1,47 +1,45 @@
-# Sanitized raw reports and verification observations.
+# Sanitized raw reports and corrected experimental observations.
 # HID report length: 21 bytes. Report ID: 06.
 
-HPAC CAPTURE: visible slot 11 set to native F12 (usage 45)
+PROVEN: HPAC capture, visible button ID 11 set to native F12 (usage 45)
 06 00 0D 09 00 01 0B 00 00 04 F8 00 45 00 02 00 00 00 00 00 00
 
-LIVE WRITE: hidden slot 12 set to Print Screen (usage 46)
-06 00 0D 09 00 01 0C 00 00 04 F8 00 46 00 02 00 00 00 00 00 00
-
-LIVE WRITE: hidden slot 14 set to Home (usage 4A)
-06 00 0D 09 00 01 0E 00 00 04 F8 00 4A 00 02 00 00 00 00 00 00
-
-LIVE WRITE: hidden slot 17 set to End (usage 4D)
-06 00 0D 09 00 01 11 00 00 04 F8 00 4D 00 02 00 00 00 00 00 00
-
-LIVE WRITE: hidden slot 15 set to Page Up (usage 4B)
-06 00 0D 09 00 01 0F 00 00 04 F8 00 4B 00 02 00 00 00 00 00 00
-
-LIVE WRITE: hidden slot 18 set to Page Down (usage 4E)
-06 00 0D 09 00 01 12 00 00 04 F8 00 4E 00 02 00 00 00 00 00 00
-
-HPAC CAPTURE: Fn Lock current=on, startup=on
+PROVEN: Fn Lock current=on, startup=on
 06 10 0D 0C 00 80 0B 00 01 00 00 00 00 00 00 00 07 E0 16 0A F3
 
-WINDOWS VERIFICATION BEFORE POWER CYCLE
-PRINTSCREEN DOWN
-PRINTSCREEN UP
-HOME DOWN
-HOME UP
-END DOWN
-END UP
-PAGEUP DOWN
-PAGEUP UP
-PAGEDOWN DOWN
-PAGEDOWN UP
+EXPERIMENTAL: entry 12 stored with Print Screen program
+06 00 0D 09 00 01 0C 00 00 04 F8 00 46 00 02 00 00 00 00 00 00
 
-WINDOWS VERIFICATION AFTER KEYBOARD OFF/ON POWER CYCLE
-PRINTSCREEN DOWN
-PRINTSCREEN UP
-HOME DOWN
-HOME UP
-END DOWN
-END UP
-PAGEUP DOWN
-PAGEUP UP
-PAGEDOWN DOWN
-PAGEDOWN UP
+EXPERIMENTAL: entry 14 stored with Home program
+06 00 0D 09 00 01 0E 00 00 04 F8 00 4A 00 02 00 00 00 00 00 00
+
+EXPERIMENTAL: entry 17 stored with End program
+06 00 0D 09 00 01 11 00 00 04 F8 00 4D 00 02 00 00 00 00 00 00
+
+EXPERIMENTAL: entry 15 stored with Page Up program
+06 00 0D 09 00 01 0F 00 00 04 F8 00 4B 00 02 00 00 00 00 00 00
+
+EXPERIMENTAL: entry 18 stored with Page Down program
+06 00 0D 09 00 01 12 00 00 04 F8 00 4E 00 02 00 00 00 00 00 00
+
+The keyboard returned a multipart ButtonReply containing all five descriptors:
+
+06 01 0D 2D 00 00 18 05 01 18 0C 01 00 04 F8 00 46 00 0E 01 00
+06 01 0D 2D 04 04 F8 00 4A 00 11 01 00 04 F8 00 4D 00 0F 01 00
+06 01 0D 2D 08 04 F8 00 4B 00 12 01 00 04 F8 00 4E 00 00 00 00
+
+Despite successful storage, no-Fn physical events remained:
+
+Stamp      -> firmware Win+Space macro
+Home       -> LAUNCH_APP2
+End        -> ESC
+Page Up    -> Brightness Up consumer usage
+Page Down  -> Brightness Down consumer usage
+
+With Fn held, the same physical keys emitted native Print Screen, Home, End,
+Page Up, and Page Down.
+
+Entries 12 through 23 were then assigned unique F13 through F24 programs. None
+of the five physical keys emitted those diagnostic usages, with or without Fn.
+All experimental entries were cleared afterward. The reply collapsed to size 9
+(`nb=0`), confirming cleanup.

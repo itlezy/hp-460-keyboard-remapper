@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Control Fn Lock and hidden navigation-key slots on an HP 460 keyboard."""
+"""Control Fn Lock and inspect key-layer behavior on an HP 460 keyboard."""
 
 from __future__ import annotations
 
@@ -29,21 +29,17 @@ ERROR_NO_MORE_ITEMS = 259
 INVALID_HANDLE_VALUE = ctypes.c_void_p(-1).value
 
 
-@dataclass(frozen=True)
-class NavAssignment:
-    name: str
-    slot: int
-    usage: int
-    windows_vk: int
-
-
-NAV_ASSIGNMENTS = (
-    NavAssignment("print-screen", 12, 0x46, 0x2C),
-    NavAssignment("home", 14, 0x4A, 0x24),
-    NavAssignment("end", 17, 0x4D, 0x23),
-    NavAssignment("page-up", 15, 0x4B, 0x21),
-    NavAssignment("page-down", 18, 0x4E, 0x22),
-)
+TARGET_VKS = {
+    0x2C: "PRINTSCREEN",
+    0x24: "HOME",
+    0x23: "END",
+    0x21: "PAGEUP",
+    0x22: "PAGEDOWN",
+    0x5B: "LWIN",
+    0x20: "SPACE",
+    0x1B: "ESC",
+    0xB7: "LAUNCH_APP2",
+}
 
 FN_LOCK_PREFIX = bytes.fromhex(
     "06 10 0D 0C 00 80 0B 00 01 00 00 00 00 00 00 00"
@@ -63,13 +59,13 @@ def build_fn_lock_report(*, current: bool, startup: bool) -> bytes:
     return report
 
 
-def build_nav_set_report(assignment: NavAssignment) -> bytes:
-    """Build HPAC command 1 with a four-byte native keyboard program."""
+def build_button_set_report(*, button_id: int, usage: int, host: int = 0) -> bytes:
+    """Build an experimental HPAC command-1 button-program report."""
     report = (
         bytes.fromhex("06 00 0D 09 00 01")
-        + bytes([assignment.slot])
-        + bytes.fromhex("00 00 04 F8 00")
-        + bytes([assignment.usage])
+        + bytes([button_id, host])
+        + bytes.fromhex("00 04 F8 00")
+        + bytes([usage])
         + bytes.fromhex("00 02 00 00 00 00 00 00")
     )
     if len(report) != REPORT_LENGTH:
@@ -77,12 +73,12 @@ def build_nav_set_report(assignment: NavAssignment) -> bytes:
     return report
 
 
-def build_nav_restore_report(assignment: NavAssignment) -> bytes:
-    """Build HPAC command 1 with an empty program, restoring firmware default."""
+def build_button_clear_report(*, button_id: int, host: int = 0) -> bytes:
+    """Build HPAC command 1 with an empty experimental button program."""
     report = (
         bytes.fromhex("06 00 0D 05 00 01")
-        + bytes([assignment.slot])
-        + bytes.fromhex("00 00 00 02 00 00 00 00 00 00 00 00 00 00")
+        + bytes([button_id, host])
+        + bytes.fromhex("00 00 02 00 00 00 00 00 00 00 00 00 00")
     )
     if len(report) != REPORT_LENGTH:
         raise AssertionError(f"Unexpected report length: {len(report)}")
@@ -347,13 +343,6 @@ class WindowsHidApi:
             )
 
 
-def selected_assignments(names: list[str] | None) -> tuple[NavAssignment, ...]:
-    if not names:
-        return NAV_ASSIGNMENTS
-    requested = set(names)
-    return tuple(item for item in NAV_ASSIGNMENTS if item.name in requested)
-
-
 def open_selected_device(index: int) -> tuple[WindowsHidApi, list[HidDevice], HidDevice]:
     api = WindowsHidApi()
     devices, blocked = api.open_matching_devices()
@@ -371,40 +360,6 @@ def open_selected_device(index: int) -> tuple[WindowsHidApi, list[HidDevice], Hi
             f"Device index {index} is invalid; found {len(devices)} device(s)."
         )
     return api, devices, devices[index]
-
-
-def print_nav_plan(mode: str, assignments: tuple[NavAssignment, ...]) -> None:
-    builder = build_nav_set_report if mode == "apply" else build_nav_restore_report
-    for item in assignments:
-        report = builder(item)
-        print(
-            f"{item.name:12} slot={item.slot:2d} usage=0x{item.usage:02X}  "
-            f"{report.hex(' ').upper()}"
-        )
-
-
-def run_nav(args: argparse.Namespace) -> int:
-    assignments = selected_assignments(args.key)
-    mode = "apply" if args.action in ("plan", "apply") else "restore"
-    print_nav_plan(mode, assignments)
-    if args.action == "plan":
-        return 0
-
-    api, devices, selected = open_selected_device(args.device_index)
-    builder = build_nav_set_report if args.action == "apply" else build_nav_restore_report
-    try:
-        for item in assignments:
-            api.write(selected, builder(item))
-            time.sleep(args.delay)
-    finally:
-        for device in devices:
-            api.close(device)
-    completed_action = "applied" if args.action == "apply" else "restored"
-    print(
-        f"HP 460 navigation mappings {completed_action}: "
-        f"{len(assignments)} key(s), firmware=0x{selected.version:04X}"
-    )
-    return 0
 
 
 def run_fn_lock(args: argparse.Namespace) -> int:
@@ -425,30 +380,6 @@ def run_fn_lock(args: argparse.Namespace) -> int:
         f"current={'on' if current else 'off'}, "
         f"startup={'on' if startup else 'off'}, "
         f"firmware=0x{selected.version:04X}"
-    )
-    return 0
-
-
-def run_setup(args: argparse.Namespace) -> int:
-    fn_report = build_fn_lock_report(current=True, startup=True)
-    print("fn-lock     current=on startup=on  " + fn_report.hex(" ").upper())
-    print_nav_plan("apply", NAV_ASSIGNMENTS)
-    if args.dry_run:
-        return 0
-
-    api, devices, selected = open_selected_device(args.device_index)
-    try:
-        api.write(selected, fn_report)
-        time.sleep(args.delay)
-        for assignment in NAV_ASSIGNMENTS:
-            api.write(selected, build_nav_set_report(assignment))
-            time.sleep(args.delay)
-    finally:
-        for device in devices:
-            api.close(device)
-    print(
-        "HP 460 canonical setup applied: Fn Lock current/startup=on, "
-        f"5 native navigation keys, firmware=0x{selected.version:04X}"
     )
     return 0
 
@@ -477,9 +408,9 @@ def run_verify(_: argparse.Namespace) -> int:
     if os.name != "nt":
         raise RuntimeError("Key verification is only available on Windows.")
     user32 = ctypes.WinDLL("user32", use_last_error=True)
-    names = {item.windows_vk: item.name.upper() for item in NAV_ASSIGNMENTS}
+    names = TARGET_VKS
     previous = {vk: False for vk in names}
-    print("Monitoring only Print Screen, Home, End, Page Up, and Page Down.")
+    print("Monitoring target native keys and hook-visible HP default events.")
     print("Press Ctrl+C to stop.")
     try:
         while True:
@@ -495,20 +426,12 @@ def run_verify(_: argparse.Namespace) -> int:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Program HP 460 Fn Lock and hidden navigation-key slots."
+        description="Control HP 460 Fn Lock and inspect key-layer behavior."
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     devices = subparsers.add_parser("devices", help="list matching control devices")
     devices.set_defaults(func=run_devices)
-
-    setup = subparsers.add_parser(
-        "setup", help="enable persistent Fn Lock and apply all five native keys"
-    )
-    setup.add_argument("--device-index", type=int, default=0)
-    setup.add_argument("--delay", type=float, default=0.3)
-    setup.add_argument("--dry-run", action="store_true")
-    setup.set_defaults(func=run_setup)
 
     fn_lock = subparsers.add_parser("fn-lock", help="set current/startup Fn Lock")
     fn_lock.add_argument("state", choices=("on", "off"))
@@ -517,19 +440,9 @@ def build_parser() -> argparse.ArgumentParser:
     fn_lock.add_argument("--dry-run", action="store_true")
     fn_lock.set_defaults(func=run_fn_lock)
 
-    nav = subparsers.add_parser("nav", help="program or restore hidden key slots")
-    nav.add_argument("action", choices=("plan", "apply", "restore"))
-    nav.add_argument(
-        "--key",
-        action="append",
-        choices=tuple(item.name for item in NAV_ASSIGNMENTS),
-        help="operate on one key; repeat for multiple keys; default is all",
+    verify = subparsers.add_parser(
+        "verify", help="monitor target keys and hook-visible default events"
     )
-    nav.add_argument("--device-index", type=int, default=0)
-    nav.add_argument("--delay", type=float, default=0.3)
-    nav.set_defaults(func=run_nav)
-
-    verify = subparsers.add_parser("verify", help="monitor only the five target keys")
     verify.set_defaults(func=run_verify)
     return parser
 

@@ -18,73 +18,78 @@ used standard Microsoft HID drivers; no HP filter was required.
 HPAC contains device classes named `HPACAsh400`, `HPACAsh405`, `HPACAsh460`,
 and `HPACAsh475`. The tested 460 identifies itself with codename `Ash`.
 
-## Hidden slots
+## The 24-entry hypothesis
 
-HPAC's embedded Ash QML defines only these visible assignments:
+HPAC's embedded Ash QML exposes only button IDs `0–11`, corresponding to F1
+through F12. The keyboard's configuration response nevertheless reports
+`nbProgrammableButtons:24`, and HPAC's generic `setButtonProgram` backend can
+address descriptors by `(buttonId, host, pressType)` without enforcing the 12
+QML entries.
 
-```text
-buttonId 0 through 11 = F1 through F12
-```
+Related HP keyboard QML, particularly an Ivy layout, uses IDs `12–18` for a
+top-row special key, Insert, Home, Page Up, Delete, End, and Page Down. This
+made a matching Ash layout plausible, but the controlled experiment rejected
+it:
 
-The device's config reply says `nbProgrammableButtons:24`. HPAC's generic
-`setButtonProgram` backend searches descriptors by `(buttonId, host,
-pressType)` and is not restricted to the 12 QML entries.
+- Ash accepted native-key programs in IDs `12`, `14`, `15`, `17`, and `18`;
+- a configuration query returned those records exactly;
+- none of the five corresponding physical keys changed on either Fn layer;
+- assigning F13 through F24 to every ID from `12` through `23` likewise
+  produced no matching physical event.
 
-Related HP keyboard QML, particularly the Ivy layout, uses this sequence:
-
-```text
-12: top-row special key
-13: Insert
-14: Home
-15: Page Up
-16: Delete
-17: End
-18: Page Down
-```
-
-On Ash, the top-row special key after F12 is Stamp/Print Screen. Programming
-slot 12 changed only that physical key, experimentally confirming the sequence.
-Slots 14, 17, 15, and 18 then produced native Home, End, Page Up, and Page Down
-respectively.
+The protocol's reported count is therefore not a proven physical key map. It
+may describe capacity, an inactive host/press-type namespace, or entries used
+by another device/layout path. The experiment was cleaned up by clearing IDs
+`12–23`; the keyboard then returned an empty custom configuration.
 
 ## Native-key bytecode
 
-HPAC was temporarily used to assign native F12 to visible slot 11. Its packet
-contained a four-byte program:
+HPAC was temporarily used to assign native F12 to visible button ID 11. Its
+packet contained a four-byte program:
 
 ```text
 F8 00 45 00
 ```
 
-`45` is the standard USB HID Keyboard/Keypad usage for F12. Replacing it with
-the standard usages for Print Screen and the navigation keys produced the
-expected native events. The temporary F12 assignment was then cleared through
-HPAC.
+`45` is the standard USB HID Keyboard/Keypad usage for F12. This proves the
+native-key bytecode and the write format for an exposed programmable button.
+It does not prove that arbitrary configuration IDs are connected to physical
+keys. The temporary F12 assignment was cleared through HPAC.
 
-## Why not AutoHotkey?
+## Why AutoHotkey is insufficient for the complete fix
 
-With Fn Lock on, the target keys did not all enter Windows through the same
+With Fn Lock on, the target keys do not all enter Windows through the same
 keyboard path:
 
-- Print Screen generated a firmware `Win+Space` macro;
-- Home appeared as consumer usage `0x0192` / `VK_LAUNCH_APP2`;
-- End became ordinary Esc, indistinguishable from the physical Esc key;
-- Page Up and Page Down generated brightness consumer usages and were absent
+- Print Screen generates a firmware `Win+Space` macro;
+- Home appears as consumer usage `0x0192` / `VK_LAUNCH_APP2`;
+- End becomes ordinary Esc, indistinguishable from physical Esc to a normal
+  keyboard hook;
+- Page Up and Page Down generate brightness consumer usages and are absent
   from the low-level keyboard hook.
 
-Raw Input can observe more devices/usages but cannot suppress the original
-events system-wide. A kernel interception/filter driver would be invasive and
-would still struggle to distinguish End from real Esc after firmware has
-already collapsed both into the same event.
+AutoHotkey can address some of these cases, but not all of them cleanly and
+device-specifically. Raw Input can identify devices and usages, but it cannot
+suppress the original events system-wide. A device-aware kernel filter could
+intercept lower in the stack, although distinguishing End from physical Esc
+depends on whether the reports remain distinct at that level.
 
-Programming the keyboard's own hidden slots fixes the events at their source.
+## Why not firmware replacement yet?
 
-## Why not firmware replacement?
+Public firmware images helped confirm protocol structure, but replacing
+firmware would add signing, bootloader, calibration-data, and brick risks.
+There is not yet enough evidence that a modified image can be accepted or
+recovered safely. This project does not flash or patch firmware.
 
-The public firmware images helped confirm protocol structure but were not
-needed for the fix. Replacing firmware would add signing, bootloader,
-calibration-data, and brick risks without improving the result. This project
-does not flash or patch firmware.
+## Productive next directions
+
+- Capture and decode reports from the additional vendor collections (report
+  IDs 7, 8, and 9) while exercising both layers.
+- Correlate host/press-type values with HPAC's multi-host and long-press code.
+- Inspect the firmware's key-matrix-to-report dispatch around the consumer and
+  keyboard report paths.
+- Prototype a device-specific HID/filter interception only if the pre-HID
+  reports retain enough information to distinguish the target keys.
 
 ## Tooling used during research
 
