@@ -1,10 +1,16 @@
 # Decision record and next plan
 
+The [current software-only plan](software-only-plan.md) supersedes the next
+steps below. The user has no electronics equipment and accepts a resident
+helper. Research now focuses on a temporary VM program and PC companion;
+opening the keyboard and installing a driver are not current prerequisites.
+
 The later [device-validation report](device-validation-and-next-test.md)
 supersedes the priority order below. Matrix replacement passes function
 emulation, but fails the now-identified device RSA/SHA check. HPAC development
 mode bypasses only the outer signature. Debug/recovery access and physical
-flash readout remain open; the next step is controller/board identification.
+flash readout remain open. Controller/board identification was the former
+hardware route; the current user constraints favour the software-only path.
 
 ## Results established on hardware
 

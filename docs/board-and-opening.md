@@ -1,5 +1,9 @@
 # Board photographs and opening status
 
+Current scope: [software-only research](software-only-plan.md). The user has
+no electronics tools; opening the keyboard is not being requested. The
+inspection notes below are retained for a possible future hardware phase.
+
 The Sunrex FCC filing for regulatory model TPA-S001K / FCC ID J75TPAS001K
 contains manufacturer-submitted photographs. Its user manual names both HP
 460 (Bluetooth) and HP 475 (Bluetooth plus dongle). Confirm the regulatory
@@ -50,6 +54,6 @@ folding foot contains a screw without inspecting the actual unit.
    apart abruptly: the manufacturer photo shows short battery wires between
    the halves. Do not remove keycaps or the metal plate for initial PCB access.
 
-The next user photograph should establish the fasteners before any model-
-specific prying instructions are given. Existing FCC photos should be used
-for controller/debug research in the meantime.
+If a hardware phase is explicitly resumed, a user photograph should establish
+the fasteners before model-specific prying instructions are given. Existing
+FCC photos can support research without opening the user's keyboard.

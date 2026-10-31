@@ -1,5 +1,10 @@
 # Device validation and the next hardware experiment
 
+Current direction: [software-only companion plan](software-only-plan.md).
+The user has no hardware equipment and accepts a program running on each PC.
+The hardware sequence below is retained as research history, not an instruction
+to open the keyboard or buy a programmer.
+
 ## Decision
 
 One HP keyboard is now an acceptable experimental target even if recovery

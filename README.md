@@ -5,6 +5,12 @@ Multi-Device Bluetooth Keyboard** (`VID 03F0`, `PID 814A`).
 
 ## Current status
 
+Current direction: [software-only companion and temporary F-row mask program](docs/software-only-plan.md).
+A running helper is acceptable; hardware tools and opening the keyboard are
+outside the current plan. A bounded program passes original-ARM emulation for
+all F-row combinations, but live timing, lifecycle and Windows input delivery
+are not established. No live simulator program has been sent.
+
 Latest analysis: [device signature proof and next hardware experiment](docs/device-validation-and-next-test.md).
 Two offline patch candidates pass ARM function emulation; the preferred one
 replaces the special matrix keycodes with native usages and discards the media
@@ -145,6 +151,8 @@ edited image is not expected to pass the stock updater.
 - [Firmware notes and hashes](docs/firmware.md)
 - [Firmware follow-up, signature analysis and readout plan](docs/firmware-followup.md)
 - [Device signature verification, Italian/US layout and next hardware test](docs/device-validation-and-next-test.md)
+- [Current software-only plan and combined-mask prototype](docs/software-only-plan.md)
+- [Consumer-only programs and their overlap limitation](docs/consumer-bridge.md)
 - [Decision record and next plan](docs/decision-plan.md)
 - [Known-incomplete AHK experiment](experiments/fn-off-ahk-prototype.ahk)
 - [Sanitized HPAC startup capture](captures/hpac-startup-sanitized.txt)
