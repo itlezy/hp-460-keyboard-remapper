@@ -127,6 +127,39 @@ The user's prior Fn-Lock-off experiment also shows why self-programming F1–F12
 is not an equivalent workaround: the simulated program does not compose with a
 physically held Shift, so `Shift+F4` still requires Fn.
 
+The same direct dispatcher makes the Fn-Lock-off host-remap alternative more
+complicated than six media-key remaps. The complete F-row outputs are:
+
+| Physical key | Direct special-layer output |
+| --- | --- |
+| F1–F6 | Mute, Volume Down, Volume Up, Previous, Play/Pause, Next |
+| F7 | Left GUI + keyboard usage `0x33` (`Win+;`) |
+| F8 | keyboard F13, usage `0x68` |
+| F9 | keyboard Scroll Lock, usage `0x47` |
+| F10 | Left GUI + I |
+| F11 | Left GUI + L |
+| F12 | Left Ctrl + F |
+
+The F7–F12 chords are assembled directly into the keyboard report. A simple
+AHK remap catches F1–F6 but does not reliably suppress the synthetic modifier
+sequence for the remaining keys.
+
+## Minimal offline patch candidate
+
+The direct-layer call site contains an existing native-conversion block at
+`0x1000747E`. Redirecting only the `0x010C–0x0112` branch to this block would
+leave F1–F12 on their normal direct path while making Stamp through Page Down
+native. The proposed two-halfword patch is:
+
+| Virtual address | File offset | Original | Candidate | Meaning |
+| ---: | ---: | --- | --- | --- |
+| `0x10007420` | `0x742D` | `09 D0` | `2D D0` | Stamp: branch to native block |
+| `0x10007422` | `0x742F` | `20 46` | `2C E0` | Insert–Page Down: branch to native block |
+
+This is a static candidate, not a flashable release. It has not passed the
+container's unknown authentication checks, has not been run on hardware, and
+must not be flashed without a full backup and a proven recovery route.
+
 ## Updater authentication boundary
 
 The image is neither encrypted nor packed as a whole, but the 1.2.0 tail has
