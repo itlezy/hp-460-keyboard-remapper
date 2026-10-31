@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import argparse
 import ctypes
+import subprocess
 import sys
 import time
 from ctypes import wintypes
@@ -37,6 +38,7 @@ from experiments.key_mask_program import build_key_mask_program
 
 F_VKS = {index + 1: 0x70 + index for index in range(12)}
 KEYEVENTF_KEYUP = 0x0002
+HPAC_PROCESS = "HPAccessoryCenter.exe"
 
 
 ULONG_PTR = ctypes.c_size_t
@@ -92,6 +94,15 @@ def ensure_clean_state(api: hp460.WindowsHidApi, selected: hp460.HidDevice) -> N
     api.write(selected, hp460.build_fn_lock_report(current=False, startup=False))
     for button_id in range(12):
         api.write(selected, hp460.build_button_clear_report(button_id=button_id, host=0))
+
+
+def ensure_hpac_closed() -> None:
+    result = subprocess.run(
+        ["taskkill", "/F", "/IM", HPAC_PROCESS],
+        capture_output=True, text=True, encoding="utf-8", errors="replace",
+    )
+    if result.returncode not in (0, 128):
+        raise RuntimeError(f"Failed to close {HPAC_PROCESS}: {result.stderr.strip()}")
 
 
 def load_mask_program(api: hp460.WindowsHidApi, selected: hp460.HidDevice,
@@ -173,6 +184,8 @@ def read_notifications(api: hp460.WindowsHidApi, selected: hp460.HidDevice,
 
 
 def run(args: argparse.Namespace) -> int:
+    if not args.no_kill_hpac:
+        ensure_hpac_closed()
     api, devices, selected = hp460.open_selected_device(args.device_index)
     try:
         ensure_clean_state(api, selected)
@@ -199,6 +212,8 @@ def build_parser() -> argparse.ArgumentParser:
                         help="run the notification loop for a bounded number of seconds")
     parser.add_argument("--dry-run", action="store_true",
                         help="apply clean state and load one program, then exit without the loop")
+    parser.add_argument("--no-kill-hpac", action="store_true",
+                        help="do not terminate HP Accessory Center before opening the device")
     return parser
 
 
