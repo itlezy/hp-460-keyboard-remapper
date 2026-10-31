@@ -127,17 +127,10 @@ flash or patch firmware.
 
 ## Productive next directions
 
-- Repeat one ID `12–18` write with a known-supported short-press program,
-  drain the full reply, reconnect/power-cycle, test both layers, and clear it.
-- Capture and decode reports from the additional vendor collections (report
-  IDs 7, 8, and 9) while exercising both layers.
-- Correlate host/press-type values with HPAC's multi-host and long-press code.
-- Identify the Fn Lock/layer decision that turns virtual matrix codes into the
-  configurable special-key mask.
-- Identify the exact PixArt controller/package and non-destructive debug pads;
-  obtain a full backup and prove recovery before attempting any flash write.
-- Prototype a device-specific HID/filter interception only if the pre-HID
-  reports retain enough information to distinguish the target keys.
+See the [firmware follow-up](firmware-followup.md) for the updated plan, actual
+HPAC validation addresses, independent RSA verification and the 29,184-run
+function emulator test. It prioritizes replacing the special matrix entries,
+finding a readback/debug path, and resolving inner/device validation.
 
 ## Tooling used during research
 

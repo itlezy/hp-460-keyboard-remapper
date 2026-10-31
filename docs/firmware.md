@@ -162,6 +162,13 @@ must not be flashed without a full backup and a proven recovery route.
 
 ## Updater authentication boundary
 
+Later HPAC analysis proved that two of these regions are outer RSA signature
+blocks and identified the exact nested layout. See the
+[firmware follow-up](firmware-followup.md) for the verified record offsets,
+public-key operation, digest checks and function emulator results. The first
+inner block remains unresolved. The historical size-based observations below
+are retained as the starting point for that analysis.
+
 The image is neither encrypted nor packed as a whole, but the 1.2.0 tail has
 three distinct 256-byte high-entropy regions, at file offsets:
 

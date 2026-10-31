@@ -1,5 +1,10 @@
 # Decision record and next plan
 
+The later [firmware follow-up](firmware-followup.md) supersedes the priority
+order below: matrix replacement now passes function emulation, and the outer
+HPAC signatures have been independently verified. The firmware readout path
+and inner/device validation remain open.
+
 ## Results established on hardware
 
 All live tests used the HP 460 with firmware 1.20.0. The test processes were

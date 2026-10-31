@@ -5,6 +5,13 @@ Multi-Device Bluetooth Keyboard** (`VID 03F0`, `PID 814A`).
 
 ## Current status
 
+Latest analysis: [firmware follow-up and readout plan](docs/firmware-followup.md).
+Two offline patch candidates pass ARM function emulation; the preferred one
+replaces the special matrix keycodes with native usages and discards the media
+layer. HPAC's outer firmware signatures are now independently verified, and a
+modified image fails that check. A physical keyboard flash dump and a usable
+installation/recovery path are still pending.
+
 The Fn Lock control is proven and works both immediately and at keyboard
 startup:
 
@@ -125,6 +132,7 @@ edited image is not expected to pass the stock updater.
 - [Vendor HID protocol and slot experiment](docs/protocol.md)
 - [Reverse-engineering notes](docs/reverse-engineering.md)
 - [Firmware notes and hashes](docs/firmware.md)
+- [Firmware follow-up, signature analysis and readout plan](docs/firmware-followup.md)
 - [Decision record and next plan](docs/decision-plan.md)
 - [Known-incomplete AHK experiment](experiments/fn-off-ahk-prototype.ahk)
 - [Sanitized HPAC startup capture](captures/hpac-startup-sanitized.txt)
