@@ -23,9 +23,13 @@ GENERIC_WRITE = 0x40000000
 FILE_SHARE_READ = 0x00000001
 FILE_SHARE_WRITE = 0x00000002
 OPEN_EXISTING = 3
+FILE_FLAG_OVERLAPPED = 0x40000000
 DIGCF_PRESENT = 0x00000002
 DIGCF_DEVICEINTERFACE = 0x00000010
 ERROR_NO_MORE_ITEMS = 259
+ERROR_IO_PENDING = 997
+WAIT_OBJECT_0 = 0
+WAIT_TIMEOUT = 258
 INVALID_HANDLE_VALUE = ctypes.c_void_p(-1).value
 
 
@@ -133,6 +137,16 @@ class HidpCaps(ctypes.Structure):
     ]
 
 
+class Overlapped(ctypes.Structure):
+    _fields_ = [
+        ("internal", ctypes.c_size_t),
+        ("internal_high", ctypes.c_size_t),
+        ("offset", wintypes.DWORD),
+        ("offset_high", wintypes.DWORD),
+        ("event", wintypes.HANDLE),
+    ]
+
+
 @dataclass(frozen=True)
 class HidDevice:
     path: str
@@ -142,6 +156,7 @@ class HidDevice:
 
 @dataclass(frozen=True)
 class HidCollection:
+    path: str
     usage_page: int
     usage: int
     input_length: int
@@ -216,6 +231,35 @@ class WindowsHidApi:
             wintypes.DWORD,
             ctypes.POINTER(wintypes.DWORD),
             ctypes.c_void_p,
+        ]
+        self.kernel32.ReadFile.argtypes = [
+            wintypes.HANDLE,
+            ctypes.c_void_p,
+            wintypes.DWORD,
+            ctypes.POINTER(wintypes.DWORD),
+            ctypes.POINTER(Overlapped),
+        ]
+        self.kernel32.CreateEventW.argtypes = [
+            ctypes.c_void_p,
+            wintypes.BOOL,
+            wintypes.BOOL,
+            wintypes.LPCWSTR,
+        ]
+        self.kernel32.CreateEventW.restype = wintypes.HANDLE
+        self.kernel32.WaitForSingleObject.argtypes = [
+            wintypes.HANDLE,
+            wintypes.DWORD,
+        ]
+        self.kernel32.ResetEvent.argtypes = [wintypes.HANDLE]
+        self.kernel32.GetOverlappedResult.argtypes = [
+            wintypes.HANDLE,
+            ctypes.POINTER(Overlapped),
+            ctypes.POINTER(wintypes.DWORD),
+            wintypes.BOOL,
+        ]
+        self.kernel32.CancelIoEx.argtypes = [
+            wintypes.HANDLE,
+            ctypes.POINTER(Overlapped),
         ]
         self.kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
 
@@ -376,6 +420,7 @@ class WindowsHidApi:
                     continue
                 collections.append(
                     HidCollection(
+                        path=path,
                         usage_page=caps.usage_page,
                         usage=caps.usage,
                         input_length=caps.input_report_byte_length,
@@ -389,6 +434,80 @@ class WindowsHidApi:
                     self.hid.HidD_FreePreparsedData(preparsed_data)
                 self.kernel32.CloseHandle(handle)
         return collections, blocked
+
+    def capture_input(
+        self, collection: HidCollection, duration_seconds: float | None = None
+    ) -> None:
+        """Print reports from one input collection without writing to it."""
+        if collection.input_length <= 0:
+            raise RuntimeError("The selected collection has no input reports.")
+        handle = self.kernel32.CreateFileW(
+            collection.path,
+            GENERIC_READ,
+            FILE_SHARE_READ | FILE_SHARE_WRITE,
+            None,
+            OPEN_EXISTING,
+            FILE_FLAG_OVERLAPPED,
+            None,
+        )
+        if ctypes.c_void_p(handle).value == INVALID_HANDLE_VALUE:
+            raise ctypes.WinError(ctypes.get_last_error())
+        event = self.kernel32.CreateEventW(None, True, False, None)
+        if not event:
+            self.kernel32.CloseHandle(handle)
+            raise ctypes.WinError(ctypes.get_last_error())
+
+        overlapped = Overlapped(event=event)
+        buffer = ctypes.create_string_buffer(collection.input_length)
+        transferred = wintypes.DWORD()
+        pending = False
+        deadline = (
+            None
+            if duration_seconds is None
+            else time.monotonic() + duration_seconds
+        )
+        try:
+            while deadline is None or time.monotonic() < deadline:
+                if not pending:
+                    if not self.kernel32.ResetEvent(event):
+                        raise ctypes.WinError(ctypes.get_last_error())
+                    transferred.value = 0
+                    if self.kernel32.ReadFile(
+                        handle,
+                        buffer,
+                        collection.input_length,
+                        ctypes.byref(transferred),
+                        ctypes.byref(overlapped),
+                    ):
+                        print(bytes(buffer[: transferred.value]).hex(" ").upper())
+                        continue
+                    error = ctypes.get_last_error()
+                    if error != ERROR_IO_PENDING:
+                        raise ctypes.WinError(error)
+                    pending = True
+
+                wait = self.kernel32.WaitForSingleObject(event, 100)
+                if wait == WAIT_TIMEOUT:
+                    continue
+                if wait != WAIT_OBJECT_0:
+                    raise ctypes.WinError(ctypes.get_last_error())
+                if not self.kernel32.GetOverlappedResult(
+                    handle,
+                    ctypes.byref(overlapped),
+                    ctypes.byref(transferred),
+                    False,
+                ):
+                    raise ctypes.WinError(ctypes.get_last_error())
+                print(bytes(buffer[: transferred.value]).hex(" ").upper(), flush=True)
+                pending = False
+        except KeyboardInterrupt:
+            pass
+        finally:
+            if pending:
+                self.kernel32.CancelIoEx(handle, ctypes.byref(overlapped))
+                self.kernel32.WaitForSingleObject(event, 1000)
+            self.kernel32.CloseHandle(event)
+            self.kernel32.CloseHandle(handle)
 
     def close(self, device: HidDevice) -> None:
         self.kernel32.CloseHandle(device.handle)
@@ -491,6 +610,28 @@ def run_collections(_: argparse.Namespace) -> int:
     return 0 if collections else 2
 
 
+def run_capture_vendor(args: argparse.Namespace) -> int:
+    if args.seconds is not None and args.seconds <= 0:
+        raise RuntimeError("Capture duration must be greater than zero.")
+    api = WindowsHidApi()
+    collections, _ = api.matching_collections()
+    candidates = [
+        collection
+        for collection in collections
+        if (collection.usage_page, collection.usage, collection.input_length)
+        == (0xFF00, 0x0001, REPORT_LENGTH)
+    ]
+    if not candidates:
+        raise RuntimeError("No HP 460 FF00:0001 input collection was found.")
+    if len(candidates) != 1:
+        raise RuntimeError(
+            f"Expected one HP 460 FF00:0001 input collection; found {len(candidates)}."
+        )
+    print("Capturing read-only FF00:0001 reports. Press Ctrl+C to stop.")
+    api.capture_input(candidates[0], args.seconds)
+    return 0
+
+
 def run_verify(_: argparse.Namespace) -> int:
     if os.name != "nt":
         raise RuntimeError("Key verification is only available on Windows.")
@@ -524,6 +665,17 @@ def build_parser() -> argparse.ArgumentParser:
         "collections", help="inspect all matching HID collections read-only"
     )
     collections.set_defaults(func=run_collections)
+
+    capture_vendor = subparsers.add_parser(
+        "capture-vendor",
+        help="capture the input-only FF00:0001 vendor reports read-only",
+    )
+    capture_vendor.add_argument(
+        "--seconds",
+        type=float,
+        help="stop automatically after this many seconds",
+    )
+    capture_vendor.set_defaults(func=run_capture_vendor)
 
     fn_lock = subparsers.add_parser("fn-lock", help="set current/startup Fn Lock")
     fn_lock.add_argument("state", choices=("on", "off"))

@@ -40,7 +40,8 @@ therefore does not expose a premature `nav apply` command.
 
 ## What works
 
-- Enumerating only the HP `FF05:0001` vendor HID collection
+- Enumerating every HP 460 top-level HID collection read-only
+- Capturing the input-only vendor collection without writing to the keyboard
 - Enabling/disabling current and startup Fn Lock
 - Monitoring native target keys and hook-visible HP default events
 - Safely enabling HPAC's hidden developer packet logger
@@ -68,6 +69,9 @@ PYTHON.EXE hp460.py devices
 
 # Inspect every HP 460 top-level HID collection without write access.
 PYTHON.EXE hp460.py collections
+
+# Capture protocol/update responses from the input-only vendor collection.
+PYTHON.EXE hp460.py capture-vendor --seconds 15
 
 # Preview the persistent Fn Lock report without opening the keyboard.
 PYTHON.EXE hp460.py fn-lock on --dry-run

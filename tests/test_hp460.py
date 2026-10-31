@@ -5,6 +5,7 @@ from hp460 import (
     build_button_clear_report,
     build_button_set_report,
     build_fn_lock_report,
+    run_capture_vendor,
     run_collections,
 )
 
@@ -13,6 +14,11 @@ class ProtocolTests(unittest.TestCase):
     def test_collections_command_is_available(self) -> None:
         args = build_parser().parse_args(["collections"])
         self.assertIs(args.func, run_collections)
+
+    def test_vendor_capture_command_is_available(self) -> None:
+        args = build_parser().parse_args(["capture-vendor", "--seconds", "5"])
+        self.assertIs(args.func, run_capture_vendor)
+        self.assertEqual(args.seconds, 5)
 
     def test_fn_lock_states(self) -> None:
         expected = {

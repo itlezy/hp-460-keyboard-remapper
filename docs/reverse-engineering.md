@@ -61,6 +61,29 @@ This also retracts the proposed Fn-Lock-off self-map workaround. It uses the
 same simulated HPAC program mechanism the user already tested, and that path
 does not preserve a physically held Shift for `Shift+F4`.
 
+## HID collection probe
+
+Windows exposes nine top-level collections for the tested keyboard:
+
+```text
+0001:0002  mouse                    input 8
+000C:0001  consumer control         input 3
+0001:0080  system control           input 2
+FF00:0001  vendor feature           feature 21
+FF05:0001  HP control               input/output 21
+0001:0006  keyboard                 input 12, output 2
+FF00:0001  vendor input             input 21
+FF01:0001  vendor feature           feature 21
+FF02:0001  vendor feature           feature 21
+```
+
+A read-only capture of the `FF00:0001` input collection produced no reports
+while Stamp, Home, End, Page Up, and Page Down were pressed once with Fn Lock
+on. It therefore does not provide a passive pre-conversion matrix stream in
+that state; it is more likely used for protocol or updater responses. This
+negative result means a Windows filter would see the already-converted
+keyboard/consumer usages unless another diagnostic mode is found.
+
 ## Native-key bytecode
 
 HPAC was temporarily used to assign native F12 to visible button ID 11. Its
