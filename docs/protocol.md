@@ -53,9 +53,10 @@ For Button packets, observed commands were:
 | `2` | keyboard to host | button notification path |
 
 The startup config reply reported `nbProgrammableButtons:24` and no custom
-descriptors. This is a count or capacity in the protocol; it is not evidence
-that button IDs `0–23` map one-to-one to the keyboard's physical keys. The
-decoded startup exchange is in `../captures/hpac-startup-sanitized.txt`.
+descriptors. Static analysis later confirmed a 24-entry identity map inside
+the generic custom-program engine. It still is not evidence that every
+physical Ash/460 key is routed into those 24 special bits. The decoded startup
+exchange is in `../captures/hpac-startup-sanitized.txt`.
 
 ## Query and multipart replies
 
@@ -140,9 +141,10 @@ The stable physical behavior with Fn Lock enabled was:
 | Page Up | Consumer Brightness Up `0x006F` | Page Up |
 | Page Down | Consumer Brightness Down `0x0070` | Page Down |
 
-The accepted entries therefore belong to an unresolved configuration
-namespace or press path; they are not a physical navigation-key map for this
-firmware. Raw observations are recorded in `../captures/reports.txt`.
+The accepted entries are stored in the active configuration container, but the
+five physical Ash keys do not reach that container through the hypothesized
+special bits. They are therefore not an exposed navigation-key map for this
+hardware path. Raw observations are recorded in `../captures/reports.txt`.
 
 ## Fn Lock
 

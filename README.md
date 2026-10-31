@@ -25,9 +25,13 @@ tested keyboard behaves as follows:
 
 HPAC reports 24 programmable button entries, but experimental programs written
 to entries `12–23` did not control these physical keys on the Ash/460 firmware.
-The records were accepted, returned in multipart configuration replies, and
-then cleared. The project deliberately does not expose a misleading
-`nav apply` command.
+Static firmware analysis now explains why this was a tempting dead end: the
+generic firmware really has a 24-bit custom-program engine and entries `12–18`
+really have Insert/Home/Page Up/Delete/End/Page Down defaults. The Ash/460
+matrix path does not expose the tested physical keys through those configurable
+bits. The records were accepted into the active profile, returned in multipart
+configuration replies, and then cleared. The project deliberately does not
+expose a misleading `nav apply` command.
 
 An earlier apparent success was disproved by controlled layer tests. The
 corrected negative result and raw evidence are preserved here because they
@@ -41,6 +45,8 @@ substantially narrow the next phase of research.
 - Safely enabling HPAC's hidden developer packet logger
 - Building and decoding HPAC button-program packets for research
 - Preserving HPAC's non-JSON settings trailer
+- Reproducing the Ash 1.2.0 image map, runtime-data decompression, and 24-way
+  special-key dispatcher offline
 
 The tool does not disable/restart PnP devices and does not modify firmware.
 
@@ -67,6 +73,9 @@ PYTHON.EXE hp460.py fn-lock on
 
 # Observe native keys and hook-visible default events.
 PYTHON.EXE hp460.py verify
+
+# Analyze a separately downloaded public firmware image without flashing it.
+PYTHON.EXE firmware_analysis.py C:\path\to\Ash_1200.FW
 ```
 
 Optional editable installation:
@@ -86,8 +95,12 @@ Home and the firmware macro can be intercepted in user mode, but:
 - Raw Input can identify devices/usages but cannot suppress the original event
   system-wide.
 
-The next research phase should inspect the other vendor collections and/or a
-device-aware HID/filter path before considering firmware changes.
+The remaining keyboard-side route is the matrix-to-report path before the
+24-bit configurable mask. A firmware patch is technically conceivable, but the
+public updater container ends in three 256-byte authentication-sized blocks;
+an ordinary edited image is therefore not expected to pass the stock update
+path. Hardware debug access and a recovery method must be established before
+any write experiment.
 
 ## Documentation
 

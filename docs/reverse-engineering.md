@@ -18,7 +18,7 @@ used standard Microsoft HID drivers; no HP filter was required.
 HPAC contains device classes named `HPACAsh400`, `HPACAsh405`, `HPACAsh460`,
 and `HPACAsh475`. The tested 460 identifies itself with codename `Ash`.
 
-## The 24-entry hypothesis
+## The 24-entry engine and the Ash limitation
 
 HPAC's embedded Ash QML exposes only button IDs `0–11`, corresponding to F1
 through F12. The keyboard's configuration response nevertheless reports
@@ -37,10 +37,19 @@ it:
 - assigning F13 through F24 to every ID from `12` through `23` likewise
   produced no matching physical event.
 
-The protocol's reported count is therefore not a proven physical key map. It
-may describe capacity, an inactive host/press-type namespace, or entries used
-by another device/layout path. The experiment was cleaned up by clearing IDs
-`12–23`; the keyboard then returned an empty custom configuration.
+Subsequent firmware analysis established that this is a real 24-entry engine,
+not merely storage capacity. Its entry-to-special-bit table is an identity map,
+and the command handler updates the same active-profile container consulted at
+keypress time. The default switch even contains native Insert/Home/Page
+Up/Delete/End/Page Down cases at entries `13–18`.
+
+That still does not make the physical Ash keys programmable. The custom engine
+can only intercept bits supplied to it by the earlier matrix/report path. The
+controlled test proves that the five tested physical keys are not supplied as
+the hypothesized configurable bits on either layer. This is consistent with
+HP's Ash UI and product specification exposing only F1–F12. The experiment was
+cleaned up by clearing IDs `12–23`; the keyboard then returned an empty custom
+configuration.
 
 ## Native-key bytecode
 
@@ -76,18 +85,22 @@ depends on whether the reports remain distinct at that level.
 
 ## Why not firmware replacement yet?
 
-Public firmware images helped confirm protocol structure, but replacing
-firmware would add signing, bootloader, calibration-data, and brick risks.
-There is not yet enough evidence that a modified image can be accepted or
-recovered safely. This project does not flash or patch firmware.
+Public firmware images now expose the dispatcher and runtime data layout, but
+the updater tail also contains three 256-byte authentication-sized opaque
+blocks. Replacing firmware therefore adds validation, bootloader,
+calibration-data, and brick risks. There is not yet enough evidence that a
+modified image can be accepted or recovered safely. This project does not
+flash or patch firmware.
 
 ## Productive next directions
 
 - Capture and decode reports from the additional vendor collections (report
   IDs 7, 8, and 9) while exercising both layers.
 - Correlate host/press-type values with HPAC's multi-host and long-press code.
-- Inspect the firmware's key-matrix-to-report dispatch around the consumer and
-  keyboard report paths.
+- Identify the Ash matrix-to-report decision that bypasses the configurable
+  special-bit path for the five target keys.
+- Identify the exact PixArt controller/package and non-destructive debug pads;
+  obtain a full backup and prove recovery before attempting any flash write.
 - Prototype a device-specific HID/filter interception only if the pre-HID
   reports retain enough information to distinguish the target keys.
 

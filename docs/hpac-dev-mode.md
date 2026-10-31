@@ -68,10 +68,12 @@ config(nbProgrammableButtons:24 supportLongPress:0
 supportDoublePress:0 supportDownUpPress:0 supportSimulate:1)
 ```
 
-`nbProg:24` initially suggested that HPAC's 12-key Ash UI hid physical
-navigation-key slots. Controlled tests disproved that interpretation: entries
-12–23 accepted and returned programs but did not control Stamp/Home/End/Page
-Up/Page Down. `nb:0` meant no custom button descriptors were stored at startup.
+`nbProg:24` initially suggested that HPAC's 12-key Ash UI merely hid physical
+navigation-key slots. Static analysis confirmed a generic 24-entry engine, but
+controlled tests showed the important hardware-path limitation: entries
+12–23 accepted and returned programs while the Ash navigation keys did not
+enter those configurable bits. `nb:0` meant no custom button descriptors were
+stored at startup.
 
 ## Privacy before publication
 

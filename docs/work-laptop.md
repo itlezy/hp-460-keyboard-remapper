@@ -47,5 +47,5 @@ tested 1.20.0 firmware, only the Fn-held path emits the native navigation keys.
   not bypass it.
 
 Do not use the experimental slot packets as a navigation-key solution. The
-Ash firmware accepted those records but did not associate entries `12–23` with
-the physical navigation cluster.
+Ash firmware accepted those records into its active profile, but the physical
+navigation cluster did not enter the configurable 24-bit special-key path.
