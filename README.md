@@ -162,6 +162,7 @@ edited image is not expected to pass the stock updater.
 ## Documentation
 
 - [Goal, evidence, and current plan](docs/current-plan.md)
+- [VM interpreter call and the physical-modifier question](docs/vm-interpreter-call.md)
 - [Work-laptop Fn Lock procedure](docs/work-laptop.md)
 - [HPAC developer mode and packet log](docs/hpac-dev-mode.md)
 - [Vendor HID protocol and slot experiment](docs/protocol.md)
