@@ -96,6 +96,8 @@ def read_notifications(api: hp460.WindowsHidApi, selected: hp460.HidDevice,
     pending = False
     last_reload = time.monotonic()
     started = time.monotonic()
+    count = 0
+    last_heartbeat = started
     try:
         while True:
             if seconds is not None and time.monotonic() - started >= seconds:
@@ -131,6 +133,10 @@ def read_notifications(api: hp460.WindowsHidApi, selected: hp460.HidDevice,
                 mask = decode_mask(payload)
             except ValueError:
                 continue
+            count += 1
+            if observe and time.monotonic() - last_heartbeat >= 1.0:
+                print(f"heartbeat: {count} notifications, last mask={mask:03X}", flush=True)
+                last_heartbeat = time.monotonic()
             for key, down in tracker.update(mask):
                 if observe:
                     print(f"{key} {'DOWN' if down else 'UP'} (mask={mask:03X})", flush=True)
