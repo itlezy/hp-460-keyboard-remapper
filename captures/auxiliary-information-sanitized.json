@@ -1,0 +1,13 @@
+{
+  "transport": "Bluetooth GATT FF01",
+  "status": "Success",
+  "exchanges": [
+    {"command_hex": "10", "reply_hex": "0E021000"},
+    {"command_hex": "23", "reply_hex": "0E09230000000004B0EBFE"},
+    {"command_hex": "2C", "reply_hex": "0E032C0000"},
+    {"command_hex": "28", "reply_hex": "000000000000000000000000000000000000000000"}
+  ],
+  "auxiliary_mode": 0,
+  "reset_confirmed": true,
+  "native_mode_flag_read_or_written": false
+}

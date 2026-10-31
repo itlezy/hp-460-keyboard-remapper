@@ -107,6 +107,26 @@ An optional fixed information-query mode is provided for commands `23` and
 `2C`; neither is an arbitrary address read/write interface. Protocol or host
 process failure must not be mistaken for successful cleanup.
 
+## Verified information queries
+
+A subsequent `--query-info` run succeeded on the same FF01 characteristic:
+
+```text
+enable 10 -> 0E 02 10 00
+query  23 -> 0E 09 23 00 00 00 00 04 B0 EB FE
+query  2C -> 0E 03 2C 00 00
+reset  28 -> 21 zero bytes
+```
+
+Every write returned `Success`, and the final inactive read confirmed cleanup.
+The information response contains firmware value `0x04B0` (1200), consistent
+with Ash 1.2. The remaining fields are not all decoded. The original `2C`
+callback at `0x10003B6C` returns the auxiliary mode byte; its live value is 0.
+This is **not** a read of native-mode byte `0x20001BE0` or Fn Lock.
+
+The sanitized exchange is in
+[`captures/auxiliary-information-sanitized.json`](../captures/auxiliary-information-sanitized.json).
+
 ## WinRT buffer interoperability detail
 
 The returned buffer is a COM object. PowerShell's generic `.Length` fallback
@@ -137,6 +157,9 @@ PYTHON.EXE experiments/ble_vendor_read.py --read-values
 
 # Changes only temporary auxiliary protocol state, then verifies reset.
 PYTHON.EXE experiments/ble_auxiliary_handshake.py --output local-research\auxiliary-test.json
+
+# Fixed information queries, followed by the same verified auxiliary reset.
+PYTHON.EXE experiments/ble_auxiliary_handshake.py --query-info
 
 # Explicit auxiliary reset if a prior test ended without confirmed cleanup.
 PYTHON.EXE experiments/ble_auxiliary_handshake.py --reset-only
