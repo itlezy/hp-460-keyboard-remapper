@@ -22,46 +22,43 @@ dispatch, and publishes the combined 12-bit key mask through the vendor HID
 notification interface.
 
 ```mermaid
-flowchart LR
+flowchart TB
     subgraph keyboard["HP 460 keyboard"]
         direction TB
-        matrix["Physical matrix scan"]
-        layer{"Fn Lock off layer"}
-        standard["Standard keyboard HID report<br/>ordinary keys, modifiers, navigation"]
-        mask["12-bit F-row action mask<br/>bit 0 = F1 ... bit 11 = F12"]
-        filter["Active VM filter<br/>consume 0x0FFF"]
-        defaults["Default HP media / shortcut dispatch<br/>(blocked for consumed bits)"]
-        vm["Temporary VM program<br/>variable 0 = current mask"]
-        notice["Vendor HID notification<br/>02 id 03 A5 low high"]
+        matrix["Matrix scan"]
+        layer["Fn Lock off"]
+        standard["Standard HID report<br/>normal keys + modifiers + navigation"]
+        mask["F-row action mask<br/>12 bits"]
+        filter["VM filter<br/>consume 0x0FFF<br/>block HP actions"]
+        vm["VM program<br/>read mask + notify"]
+        notice["Vendor HID report<br/>02 id 03 A5 lo hi"]
 
         matrix --> layer
-        layer -->|"letters, modifiers, and navigation"| standard
-        layer -->|"F1-F12 action bits"| mask
+        layer --> standard
+        layer --> mask
         mask --> filter
         mask --> vm
-        vm -. "subcommand 7 configures" .-> filter
-        filter -. "prevents default dispatch" .-> defaults
-        vm -->|"opcode 25"| notice
+        vm --> notice
     end
 
     subgraph windows["Windows"]
         direction TB
-        keyboard_stack["Windows keyboard HID stack"]
-        companion["companion.py<br/>vendor HID reader"]
-        decode["Validate marker and decode mask"]
-        edges["Compare previous/current mask<br/>release edges, then press edges"]
-        inject["SendInput<br/>VK_F1 + bit"]
-        state["Windows input state"]
-        app["Focused application"]
+        keyboard_stack["Keyboard HID stack"]
+        companion["companion.py"]
+        decode["Validate + decode"]
+        edges["Detect changed bits"]
+        inject["SendInput<br/>F-key only"]
+        state["Windows input state<br/>physical modifiers + F-key"]
+        app["Focused application<br/>for example: Shift + F4"]
 
         companion --> decode --> edges --> inject
-        keyboard_stack -->|"physical key and modifier state"| state
-        inject -->|"F-key transition only"| state
-        state -->|"for example: Shift + F4"| app
+        keyboard_stack --> state
+        inject --> state
+        state --> app
     end
 
-    standard -->|"normal Bluetooth HID collection"| keyboard_stack
-    notice -->|"vendor Bluetooth HID collection"| companion
+    standard -->|"normal HID"| keyboard_stack
+    notice -->|"vendor HID"| companion
 ```
 
 The keyboard therefore exposes two parallel paths. Ordinary keys, physical
