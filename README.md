@@ -128,7 +128,7 @@ PYTHON.EXE companion.py
 
 Keep the terminal open while using the keyboard. The helper automatically:
 
-1. closes HP Accessory Center because it occupies the control interface;
+1. closes HP Accessory Center if it occupies the control interface;
 2. sets current and startup Fn Lock off;
 3. clears the twelve stored F-key programs;
 4. loads the temporary mask program and reconnects when necessary.
@@ -168,8 +168,6 @@ PYTHON.EXE companion.py --observe --seconds 20
 Useful options:
 
 - `--device-index N` selects a keyboard when more than one is connected.
-- `--no-kill-hpac` leaves HP Accessory Center open, although it will usually
-  prevent the companion from opening the control interface.
 - `--reconnect-seconds N` changes the retry interval.
 
 The vendor mask stream is sampled at roughly 23 Hz, so exceptionally short

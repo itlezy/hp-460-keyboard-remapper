@@ -1,12 +1,15 @@
 import unittest
+from unittest.mock import Mock, patch
 
 from hp460 import (
+    ControlInterfaceBusyError,
     build_parser,
     build_button_clear_report,
     build_button_set_report,
     build_fn_lock_report,
     run_capture_vendor,
     run_collections,
+    open_selected_device,
 )
 
 
@@ -43,6 +46,18 @@ class ProtocolTests(unittest.TestCase):
                 "02 00 00 00 00 00 00"
             ),
         )
+
+    def test_open_selected_device_reports_busy_control_interface(self) -> None:
+        api = Mock()
+        api.open_matching_devices.return_value = (
+            [],
+            [(r"\\?\hid#example&col06#blocked", 5)],
+        )
+        with (
+            patch("hp460.WindowsHidApi", return_value=api),
+            self.assertRaises(ControlInterfaceBusyError),
+        ):
+            open_selected_device(0)
 
     def test_experimental_button_clear_packet(self) -> None:
         report = build_button_clear_report(button_id=12)

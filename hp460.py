@@ -185,6 +185,10 @@ class HidCollection:
     version: int
 
 
+class ControlInterfaceBusyError(RuntimeError):
+    """The HP 460 control collection exists but another process owns it."""
+
+
 class WindowsHidApi:
     def __init__(self) -> None:
         if os.name != "nt":
@@ -555,7 +559,7 @@ def open_selected_device(index: int) -> tuple[WindowsHidApi, list[HidDevice], Hi
     if not devices:
         hp_control_blocked = any("&col06#" in path.lower() for path, _ in blocked)
         if hp_control_blocked:
-            raise RuntimeError(
+            raise ControlInterfaceBusyError(
                 "HP 460 control interface is busy. Close HP Accessory Center and retry."
             )
         raise RuntimeError("No connected HP 460 control interface was found.")

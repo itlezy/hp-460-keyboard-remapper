@@ -43,6 +43,9 @@ KEYEVENTF_KEYUP = 0x0002
 HPAC_PROCESS = "HPAccessoryCenter.exe"
 INSTANCE_MUTEX_NAME = r"Local\HP460Companion"
 ERROR_ALREADY_EXISTS = 183
+ERROR_NO_MORE_FILES = 18
+TH32CS_SNAPPROCESS = 0x00000002
+MAX_PATH = 260
 NOTIFICATION_COUNT = 127
 RELOAD_SECONDS = 1.0
 NOTIFICATION_TIMEOUT_SECONDS = 3.0
@@ -54,6 +57,21 @@ LOGGER = logging.getLogger("hp460-companion")
 
 
 ULONG_PTR = ctypes.c_size_t
+
+
+class ProcessEntry32(ctypes.Structure):
+    _fields_ = [
+        ("size", wintypes.DWORD),
+        ("usage", wintypes.DWORD),
+        ("process_id", wintypes.DWORD),
+        ("default_heap_id", ULONG_PTR),
+        ("module_id", wintypes.DWORD),
+        ("threads", wintypes.DWORD),
+        ("parent_process_id", wintypes.DWORD),
+        ("base_priority", wintypes.LONG),
+        ("flags", wintypes.DWORD),
+        ("executable", wintypes.WCHAR * MAX_PATH),
+    ]
 
 
 class MouseInput(ctypes.Structure):
@@ -169,13 +187,54 @@ def ensure_clean_state(api: hp460.WindowsHidApi, selected: hp460.HidDevice) -> N
         api.write(selected, hp460.build_button_clear_report(button_id=button_id, host=0))
 
 
-def ensure_hpac_closed() -> None:
+def find_process_ids(executable: str) -> list[int]:
+    """Return matching process IDs without launching another program."""
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel32.CreateToolhelp32Snapshot.argtypes = (wintypes.DWORD, wintypes.DWORD)
+    kernel32.CreateToolhelp32Snapshot.restype = wintypes.HANDLE
+    kernel32.Process32FirstW.argtypes = (wintypes.HANDLE, ctypes.POINTER(ProcessEntry32))
+    kernel32.Process32FirstW.restype = wintypes.BOOL
+    kernel32.Process32NextW.argtypes = (wintypes.HANDLE, ctypes.POINTER(ProcessEntry32))
+    kernel32.Process32NextW.restype = wintypes.BOOL
+    kernel32.CloseHandle.argtypes = (wintypes.HANDLE,)
+    kernel32.CloseHandle.restype = wintypes.BOOL
+
+    snapshot = kernel32.CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0)
+    if ctypes.c_void_p(snapshot).value == hp460.INVALID_HANDLE_VALUE:
+        raise ctypes.WinError(ctypes.get_last_error())
+    entry = ProcessEntry32()
+    entry.size = ctypes.sizeof(entry)
+    process_ids: list[int] = []
+    try:
+        if not kernel32.Process32FirstW(snapshot, ctypes.byref(entry)):
+            error = ctypes.get_last_error()
+            if error == ERROR_NO_MORE_FILES:
+                return []
+            raise ctypes.WinError(error)
+        while True:
+            if entry.executable.casefold() == executable.casefold():
+                process_ids.append(entry.process_id)
+            if not kernel32.Process32NextW(snapshot, ctypes.byref(entry)):
+                error = ctypes.get_last_error()
+                if error == ERROR_NO_MORE_FILES:
+                    break
+                raise ctypes.WinError(error)
+    finally:
+        kernel32.CloseHandle(snapshot)
+    return process_ids
+
+
+def close_hpac_if_running() -> bool:
+    if not find_process_ids(HPAC_PROCESS):
+        return False
     result = subprocess.run(
         ["taskkill", "/F", "/IM", HPAC_PROCESS],
         capture_output=True, text=True, encoding="utf-8", errors="replace",
+        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
     )
     if result.returncode not in (0, 128):
         raise RuntimeError(f"Failed to close {HPAC_PROCESS}: {result.stderr.strip()}")
+    return result.returncode == 0
 
 
 def load_mask_program(api: hp460.WindowsHidApi, selected: hp460.HidDevice,
@@ -266,17 +325,38 @@ def read_notifications(api: hp460.WindowsHidApi, selected: hp460.HidDevice,
 
 
 def run(args: argparse.Namespace) -> int:
+    unavailable: str | None = None
     while True:
         try:
-            if not args.no_kill_hpac:
-                ensure_hpac_closed()
             api, devices, selected = hp460.open_selected_device(args.device_index)
         except KeyboardInterrupt:
             return 0
-        except Exception as exc:
-            report(f"Device not ready: {exc}", error=True)
+        except hp460.ControlInterfaceBusyError as exc:
+            message = f"Device not ready: {exc}"
+            if message != unavailable:
+                report(message, error=True)
+                unavailable = message
+            try:
+                if close_hpac_if_running():
+                    report("Closed HP Accessory Center; retrying the keyboard now.")
+                    continue
+            except Exception as hpac_exc:
+                failure = f"Failed to handle HP Accessory Center: {hpac_exc}"
+                if failure != unavailable:
+                    report(failure, error=True)
+                    unavailable = failure
             time.sleep(args.reconnect_seconds)
             continue
+        except Exception as exc:
+            message = f"Device not ready: {exc}"
+            if message != unavailable:
+                report(message, error=True)
+                unavailable = message
+            time.sleep(args.reconnect_seconds)
+            continue
+        if unavailable is not None:
+            report("HP 460 keyboard is ready again.")
+            unavailable = None
         try:
             ensure_clean_state(api, selected)
             load_mask_program(api, selected)
@@ -314,8 +394,6 @@ def build_parser() -> argparse.ArgumentParser:
                         help="decode and print the mask stream without injecting keys")
     parser.add_argument("--seconds", type=positive_float, default=None,
                         help="run the notification loop for a bounded number of seconds")
-    parser.add_argument("--no-kill-hpac", action="store_true",
-                        help="do not terminate HP Accessory Center before opening the device")
     return parser
 
 
