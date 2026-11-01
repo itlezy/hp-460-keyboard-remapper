@@ -21,6 +21,19 @@ program consumes all twelve F-row action bits, preventing their default
 dispatch, and publishes the combined 12-bit key mask through the vendor HID
 notification interface.
 
+Internally, VM subcommand 7 installs the consumed-key mask `0x0007FF80`.
+The firmware's active filter shifts that value right by seven, producing
+`0x0FFF`: one bit for each key from F1 through F12. VM variable 0 contains the
+current special-key state, and opcode 25 publishes it in a six-byte payload:
+
+```text
+02 <button-id> 03 A5 <mask-low> <mask-high>
+```
+
+For example, F1 plus F4 is mask `0x009`, so the notification ends in
+`09 00`. The `A5` byte is a private marker that lets the companion reject
+unrelated vendor traffic.
+
 The companion tracks changes in that mask and sends only the corresponding
 F-key down/up transitions through Windows `SendInput`. It does not synthesize
 or replace modifier state: Shift, Ctrl, and Alt continue to come from the
@@ -28,9 +41,32 @@ keyboard's ordinary physical report. Consequently, combinations such as
 Shift+F4 remain intact instead of becoming the zero-modifier F4 report produced
 by HP's normal programmable-key remapping.
 
+The host-side state machine is essentially:
+
+```python
+mask = int.from_bytes(payload[4:6], "little") & 0xFFF
+released = previous & ~mask
+pressed = mask & ~previous
+
+for bit in range(12):
+    if released & (1 << bit):
+        inject_key(0x70 + bit, down=False)  # VK_F1 is 0x70
+for bit in range(12):
+    if pressed & (1 << bit):
+        inject_key(0x70 + bit, down=True)
+
+previous = mask
+```
+
+Only the F-key transition is injected. A physically held modifier has already
+reached Windows through the keyboard's normal HID report, so Windows naturally
+combines it with the injected F-key.
+
 The VM program is deliberately bounded and is refreshed while the companion is
-healthy. If the helper stops, the program expires and releases the F-row rather
-than leaving the keyboard permanently captured.
+healthy. Each instance emits at most 127 notifications; the helper refreshes it
+once per second and reconnects if valid notifications disappear for three
+seconds. If the helper stops, the remaining VM iterations expire and release
+the F-row rather than leaving the keyboard permanently captured.
 
 ## Requirements
 
