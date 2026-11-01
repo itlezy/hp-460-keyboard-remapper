@@ -1,9 +1,10 @@
-# Current software-only plan
+# Historical software-only companion design
 
-Reassessment: the [stock native-mode flag](native-mode-and-nuclear-options.md)
-offers a stronger target if a live setter can be found. Its original native
-insertion path passes offline function tests; live access is unresolved.
-The sampled VM companion described here remains a research fallback.
+This document records the design and pre-implementation validation of the
+temporary F-row mask stream. The design was subsequently implemented and
+validated live in `companion.py`; see the repository README for current usage.
+Statements below about future work or an untested live companion are retained
+as research history.
 
 ## Constraints and status
 
@@ -127,7 +128,7 @@ keyboard fix. The AHK lab companion passed parsing without activating hotkeys.
 The passive hook/Raw Input recorder was also checked briefly before the AFK
 notice and exited; it has no startup or background registration.
 
-## Remaining work before calling this a solution
+## Pre-implementation checklist (historical)
 
 1. Confirm normal vendor access, identity/version and the actual active profile
    when the keyboard is available. Obtain a private read-only configuration

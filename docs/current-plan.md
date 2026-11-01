@@ -1,16 +1,15 @@
-# Goal, evidence, and current plan
+# Research record: goal, evidence, and alternative paths
 
-This is the single entry point for where the HP 460 keyboard work stands. It
-states the goal, what has been proven, the remaining paths, the tooling, and
-the next steps. It contains no personal details, device addresses, serials,
-host names, or machine paths.
+This document preserves the firmware and hardware alternatives investigated
+before the software companion became the primary solution. See the repository
+README for current usage. It contains no personal details, device addresses,
+serials, host names, or machine paths.
 
 Implementation status: the software-only companion is now built and validated
 live. `companion.py` sets Fn Lock off, loads the bounded F-row mask program,
 reads the mask notifications, and injects F1-F12 through SendInput while the
 user's physical modifiers remain intact. Navigation is native via Fn Lock
-off. The remaining work is packaging and operational hardening, not new
-reverse engineering.
+off. Later operational hardening is implemented in the companion itself.
 
 ## Goal
 
@@ -94,7 +93,7 @@ inserted into the normal physical report with the modifier byte preserved.
 
 ## Paths
 
-### A. Firmware patch (selected)
+### A. Firmware patch (research alternative)
 
 Redirect Stamp through Page Down to the existing native insertion block while
 leaving F1-F12 on their current native path. The candidate is two halfwords:
@@ -131,7 +130,7 @@ but requires board identification and physical modification.
 - Firmware and application binaries are not redistributed; captures are
   sanitized.
 
-## Next steps
+## Historical firmware next steps
 
 1. Trace the exact OTA authentication for the two-halfword patch and determine
    whether the inner digest can be recomputed for a candidate image.

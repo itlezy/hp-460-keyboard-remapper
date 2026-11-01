@@ -22,14 +22,15 @@ from __future__ import annotations
 
 import argparse
 import ctypes
+import logging
+import math
 import os
 import subprocess
 import sys
 import time
 from ctypes import wintypes
+from logging.handlers import RotatingFileHandler
 from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import hp460
 from experiments.button_transport import frame_button_payload
@@ -40,7 +41,16 @@ from experiments.key_mask_program import build_key_mask_program
 F_VKS = {index + 1: 0x70 + index for index in range(12)}
 KEYEVENTF_KEYUP = 0x0002
 HPAC_PROCESS = "HPAccessoryCenter.exe"
-AUTOSTART_NAME = "hp460-companion.vbs"
+INSTANCE_MUTEX_NAME = r"Local\HP460Companion"
+ERROR_ALREADY_EXISTS = 183
+NOTIFICATION_COUNT = 127
+RELOAD_SECONDS = 1.0
+NOTIFICATION_TIMEOUT_SECONDS = 3.0
+LOG_MAX_BYTES = 256 * 1024
+LOG_BACKUPS = 2
+
+
+LOGGER = logging.getLogger("hp460-companion")
 
 
 ULONG_PTR = ctypes.c_size_t
@@ -92,6 +102,67 @@ def inject_key(vk: int, down: bool) -> None:
         raise ctypes.WinError(ctypes.get_last_error())
 
 
+def configure_logging() -> Path | None:
+    """Write bounded diagnostics for console and pythonw execution."""
+    if LOGGER.handlers:
+        handler = LOGGER.handlers[0]
+        return Path(handler.baseFilename) if hasattr(handler, "baseFilename") else None
+    local_app_data = os.environ.get("LOCALAPPDATA")
+    if not local_app_data:
+        return None
+    try:
+        log_dir = Path(local_app_data) / "HP460Companion"
+        log_dir.mkdir(parents=True, exist_ok=True)
+        log_path = log_dir / "companion.log"
+        handler = RotatingFileHandler(
+            log_path, maxBytes=LOG_MAX_BYTES, backupCount=LOG_BACKUPS,
+            encoding="utf-8", delay=True,
+        )
+    except OSError:
+        return None
+    handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
+    LOGGER.addHandler(handler)
+    LOGGER.setLevel(logging.INFO)
+    LOGGER.propagate = False
+    return log_path
+
+
+def report(message: str, *, error: bool = False) -> None:
+    stream = sys.stderr if error else sys.stdout
+    if stream is not None:
+        print(message, file=stream, flush=True)
+    LOGGER.log(logging.ERROR if error else logging.INFO, message)
+
+
+def release_injected_keys(tracker: MaskTracker, observe: bool = False) -> None:
+    """Release every synthetic F-key still held by the companion."""
+    transitions = tracker.release()
+    if observe:
+        return
+    for key, down in transitions:
+        try:
+            inject_key(F_VKS[int(key[1:])], down)
+        except OSError as exc:
+            report(f"Failed to release {key}: {exc}", error=True)
+
+
+def acquire_instance_lock() -> tuple[object, int] | None:
+    """Hold a session-local named mutex, or return None for a second instance."""
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel32.CreateMutexW.argtypes = (ctypes.c_void_p, wintypes.BOOL, wintypes.LPCWSTR)
+    kernel32.CreateMutexW.restype = wintypes.HANDLE
+    kernel32.CloseHandle.argtypes = (wintypes.HANDLE,)
+    kernel32.CloseHandle.restype = wintypes.BOOL
+    ctypes.set_last_error(0)
+    handle = kernel32.CreateMutexW(None, False, INSTANCE_MUTEX_NAME)
+    if not handle:
+        raise ctypes.WinError(ctypes.get_last_error())
+    if ctypes.get_last_error() == ERROR_ALREADY_EXISTS:
+        kernel32.CloseHandle(handle)
+        return None
+    return kernel32, handle
+
+
 def ensure_clean_state(api: hp460.WindowsHidApi, selected: hp460.HidDevice) -> None:
     api.write(selected, hp460.build_fn_lock_report(current=False, startup=False))
     for button_id in range(12):
@@ -107,35 +178,8 @@ def ensure_hpac_closed() -> None:
         raise RuntimeError(f"Failed to close {HPAC_PROCESS}: {result.stderr.strip()}")
 
 
-def startup_dir() -> Path:
-    appdata = Path(os.environ.get("APPDATA", str(Path.home() / "AppData" / "Roaming")))
-    return appdata / "Microsoft" / "Windows" / "Start Menu" / "Programs" / "Startup"
-
-
-def install_autostart() -> Path:
-    if getattr(sys, "frozen", False):
-        args = f'"""{sys.executable}"""'
-    else:
-        args = f'"""{sys.executable}"" ""{Path(__file__).resolve()}"""'
-    target = startup_dir() / AUTOSTART_NAME
-    target.write_text(
-        'Set W = CreateObject("WScript.Shell")\n'
-        f"W.Run {args}, 0, False\n",
-        encoding="utf-8",
-    )
-    return target
-
-
-def uninstall_autostart() -> bool:
-    target = startup_dir() / AUTOSTART_NAME
-    if target.exists():
-        target.unlink()
-        return True
-    return False
-
-
 def load_mask_program(api: hp460.WindowsHidApi, selected: hp460.HidDevice,
-                      notifications: int = 127) -> None:
+                      notifications: int = NOTIFICATION_COUNT) -> None:
     code = build_key_mask_program(notifications)
     payload = bytes((2, 0, 3, 1, 0, len(code))) + code
     for frame in frame_button_payload(payload):
@@ -143,7 +187,6 @@ def load_mask_program(api: hp460.WindowsHidApi, selected: hp460.HidDevice,
 
 
 def read_notifications(api: hp460.WindowsHidApi, selected: hp460.HidDevice,
-                       reload_seconds: float, notifications: int,
                        observe: bool = False, seconds: float | None = None) -> None:
     tracker = MaskTracker()
     handle = api.kernel32.CreateFileW(selected.path, hp460.GENERIC_READ,
@@ -152,20 +195,28 @@ def read_notifications(api: hp460.WindowsHidApi, selected: hp460.HidDevice,
     if ctypes.c_void_p(handle).value == hp460.INVALID_HANDLE_VALUE:
         raise ctypes.WinError(ctypes.get_last_error())
     event = api.kernel32.CreateEventW(None, True, False, None)
+    if not event:
+        error = ctypes.get_last_error()
+        api.kernel32.CloseHandle(handle)
+        raise ctypes.WinError(error)
     overlapped = hp460.Overlapped(event=event)
     buffer = ctypes.create_string_buffer(21)
     transferred = wintypes.DWORD()
     pending = False
     last_reload = time.monotonic()
     started = time.monotonic()
+    last_notification = started
     count = 0
     last_heartbeat = started
     try:
         while True:
             if seconds is not None and time.monotonic() - started >= seconds:
                 return
-            if time.monotonic() - last_reload >= reload_seconds:
-                load_mask_program(api, selected, notifications)
+            now = time.monotonic()
+            if now - last_notification >= NOTIFICATION_TIMEOUT_SECONDS:
+                raise RuntimeError("Notification stream timed out")
+            if now - last_reload >= RELOAD_SECONDS:
+                load_mask_program(api, selected)
                 last_reload = time.monotonic()
             if not pending:
                 if not api.kernel32.ResetEvent(event):
@@ -195,19 +246,21 @@ def read_notifications(api: hp460.WindowsHidApi, selected: hp460.HidDevice,
                 mask = decode_mask(payload)
             except ValueError:
                 continue
+            last_notification = time.monotonic()
             count += 1
             if observe and time.monotonic() - last_heartbeat >= 1.0:
-                print(f"heartbeat: {count} notifications, last mask={mask:03X}", flush=True)
+                report(f"heartbeat: {count} notifications, last mask={mask:03X}")
                 last_heartbeat = time.monotonic()
             for key, down in tracker.update(mask):
                 if observe:
-                    print(f"{key} {'DOWN' if down else 'UP'} (mask={mask:03X})", flush=True)
+                    report(f"{key} {'DOWN' if down else 'UP'} (mask={mask:03X})")
                 else:
                     inject_key(F_VKS[int(key[1:])], down)
     finally:
         if pending:
             api.kernel32.CancelIoEx(handle, ctypes.byref(overlapped))
             api.kernel32.WaitForSingleObject(event, 1000)
+        release_injected_keys(tracker, observe)
         api.kernel32.CloseHandle(event)
         api.kernel32.CloseHandle(handle)
 
@@ -221,24 +274,20 @@ def run(args: argparse.Namespace) -> int:
         except KeyboardInterrupt:
             return 0
         except Exception as exc:
-            print(f"Device not ready: {exc}", flush=True)
+            report(f"Device not ready: {exc}", error=True)
             time.sleep(args.reconnect_seconds)
             continue
         try:
             ensure_clean_state(api, selected)
-            load_mask_program(api, selected, args.notifications)
-            if args.dry_run:
-                print("Clean state applied and bounded mask program loaded.")
-                return 0
-            read_notifications(api, selected, args.reload_seconds, args.notifications,
-                               observe=args.observe, seconds=args.seconds)
+            load_mask_program(api, selected)
+            read_notifications(api, selected, observe=args.observe, seconds=args.seconds)
             if args.seconds is not None:
                 return 0
-            print("Notification stream stopped; reconnecting.", flush=True)
+            report("Notification stream stopped; reconnecting.")
         except KeyboardInterrupt:
             return 0
         except Exception as exc:
-            print(f"Runtime error; reconnecting: {exc}", flush=True)
+            report(f"Runtime error; reconnecting: {exc}", error=True)
         finally:
             for device in devices:
                 api.close(device)
@@ -246,35 +295,44 @@ def run(args: argparse.Namespace) -> int:
 
 
 def build_parser() -> argparse.ArgumentParser:
+    def nonnegative_int(value: str) -> int:
+        parsed = int(value)
+        if parsed < 0:
+            raise argparse.ArgumentTypeError("must be zero or greater")
+        return parsed
+
+    def positive_float(value: str) -> float:
+        parsed = float(value)
+        if not math.isfinite(parsed) or parsed <= 0:
+            raise argparse.ArgumentTypeError("must be a finite number greater than zero")
+        return parsed
+
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--device-index", type=int, default=0)
-    parser.add_argument("--notifications", type=int, default=127)
-    parser.add_argument("--reload-seconds", type=float, default=1.0)
-    parser.add_argument("--reconnect-seconds", type=float, default=3.0)
+    parser.add_argument("--device-index", type=nonnegative_int, default=0)
+    parser.add_argument("--reconnect-seconds", type=positive_float, default=3.0)
     parser.add_argument("--observe", action="store_true",
                         help="decode and print the mask stream without injecting keys")
-    parser.add_argument("--seconds", type=float, default=None,
+    parser.add_argument("--seconds", type=positive_float, default=None,
                         help="run the notification loop for a bounded number of seconds")
-    parser.add_argument("--dry-run", action="store_true",
-                        help="apply clean state and load one program, then exit without the loop")
     parser.add_argument("--no-kill-hpac", action="store_true",
                         help="do not terminate HP Accessory Center before opening the device")
-    parser.add_argument("--install-autostart", action="store_true",
-                        help="install a hidden Startup launcher for this helper")
-    parser.add_argument("--uninstall-autostart", action="store_true",
-                        help="remove the Startup launcher if present")
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
+    configure_logging()
     args = build_parser().parse_args(argv)
-    if args.install_autostart:
-        print(f"Installed auto-start: {install_autostart()}")
+    lock = acquire_instance_lock()
+    if lock is None:
+        report("HP 460 companion is already running.")
         return 0
-    if args.uninstall_autostart:
-        print("Removed auto-start." if uninstall_autostart() else "No auto-start entry was present.")
-        return 0
-    return run(args)
+    kernel32, handle = lock
+    try:
+        report("HP 460 companion started.")
+        return run(args)
+    finally:
+        report("HP 460 companion stopped.")
+        kernel32.CloseHandle(handle)
 
 
 if __name__ == "__main__":
