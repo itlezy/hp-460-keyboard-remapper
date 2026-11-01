@@ -12,6 +12,26 @@ The helper provides:
 
 Media actions on the primary layer are intentionally discarded.
 
+## How it works
+
+Fn Lock off gives the keyboard's navigation cluster its normal HID usages, but
+normally leaves F1–F12 on HP's media and shortcut layer. The companion loads a
+temporary program into the keyboard's built-in programmable-key VM. That
+program consumes all twelve F-row action bits, preventing their default
+dispatch, and publishes the combined 12-bit key mask through the vendor HID
+notification interface.
+
+The companion tracks changes in that mask and sends only the corresponding
+F-key down/up transitions through Windows `SendInput`. It does not synthesize
+or replace modifier state: Shift, Ctrl, and Alt continue to come from the
+keyboard's ordinary physical report. Consequently, combinations such as
+Shift+F4 remain intact instead of becoming the zero-modifier F4 report produced
+by HP's normal programmable-key remapping.
+
+The VM program is deliberately bounded and is refreshed while the companion is
+healthy. If the helper stops, the program expires and releases the F-row rather
+than leaving the keyboard permanently captured.
+
 ## Requirements
 
 - Windows 10 or 11
