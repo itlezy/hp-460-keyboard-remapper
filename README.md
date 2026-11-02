@@ -110,8 +110,11 @@ combines it with the injected F-key.
 The VM program is deliberately bounded and is refreshed while the companion is
 healthy. Each instance emits at most 127 notifications; the helper refreshes it
 once per second and reconnects if valid notifications disappear for three
-seconds. If the helper stops, the remaining VM iterations expire and release
-the F-row rather than leaving the keyboard permanently captured.
+seconds. Control writes use cancellable overlapped I/O and time out after two
+seconds, so a stalled Bluetooth HID driver also causes a reconnect instead of
+leaving the companion alive but inert. If the helper stops, the remaining VM
+iterations expire and release the F-row rather than leaving the keyboard
+permanently captured.
 
 ## Requirements
 
@@ -153,6 +156,9 @@ dialog and place a shortcut there with a target like:
 
 Background diagnostics are written to
 `%LOCALAPPDATA%\HP460Companion\companion.log`. The log rotates automatically.
+While the notification stream is healthy, the companion records a health line
+every five minutes. Write timeouts and successful recoveries are logged as
+well.
 
 F1–F12 require the running helper. The navigation cluster remains native after
 the helper exits because Fn Lock is stored off.

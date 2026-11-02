@@ -1,5 +1,9 @@
+import ctypes
 import unittest
+from types import SimpleNamespace
 from unittest.mock import Mock, patch
+
+import hp460
 
 from hp460 import (
     ControlInterfaceBusyError,
@@ -67,6 +71,48 @@ class ProtocolTests(unittest.TestCase):
                 "06 00 0D 05 00 01 0C 00 00 00 02 00 00 00 00 00 00 00 00 00 00"
             ),
         )
+
+    def test_overlapped_write_completes_after_pending_io(self) -> None:
+        api = hp460.WindowsHidApi.__new__(hp460.WindowsHidApi)
+        api.kernel32 = Mock()
+        api.kernel32.CreateEventW.return_value = 101
+        api.kernel32.WriteFile.return_value = False
+        api.kernel32.WaitForSingleObject.return_value = hp460.WAIT_OBJECT_0
+
+        def complete(_handle, _overlapped, written, _wait):
+            written._obj.value = hp460.REPORT_LENGTH
+            return True
+
+        api.kernel32.GetOverlappedResult.side_effect = complete
+        device = SimpleNamespace(handle=202)
+
+        with patch.object(ctypes, "get_last_error", return_value=hp460.ERROR_IO_PENDING):
+            api.write(device, bytes(hp460.REPORT_LENGTH))
+
+        self.assertIsNotNone(api.kernel32.WriteFile.call_args.args[4])
+        api.kernel32.CancelIoEx.assert_not_called()
+        api.kernel32.CloseHandle.assert_called_once_with(101)
+
+    def test_overlapped_write_timeout_is_cancelled(self) -> None:
+        api = hp460.WindowsHidApi.__new__(hp460.WindowsHidApi)
+        api.kernel32 = Mock()
+        api.kernel32.CreateEventW.return_value = 303
+        api.kernel32.WriteFile.return_value = False
+        api.kernel32.WaitForSingleObject.side_effect = [
+            hp460.WAIT_TIMEOUT,
+            hp460.WAIT_OBJECT_0,
+        ]
+        api.kernel32.CancelIoEx.return_value = True
+        device = SimpleNamespace(handle=404)
+
+        with (
+            patch.object(ctypes, "get_last_error", return_value=hp460.ERROR_IO_PENDING),
+            self.assertRaisesRegex(TimeoutError, "HID write timed out after 0.01 seconds"),
+        ):
+            api.write(device, bytes(hp460.REPORT_LENGTH), timeout_seconds=0.01)
+
+        api.kernel32.CancelIoEx.assert_called_once()
+        api.kernel32.CloseHandle.assert_called_once_with(303)
 
 
 if __name__ == "__main__":

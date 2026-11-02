@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import ctypes
+import math
 import os
 import sys
 import time
@@ -28,9 +29,12 @@ DIGCF_PRESENT = 0x00000002
 DIGCF_DEVICEINTERFACE = 0x00000010
 ERROR_NO_MORE_ITEMS = 259
 ERROR_IO_PENDING = 997
+ERROR_NOT_FOUND = 1168
 WAIT_OBJECT_0 = 0
 WAIT_TIMEOUT = 258
 INVALID_HANDLE_VALUE = ctypes.c_void_p(-1).value
+WRITE_TIMEOUT_SECONDS = 2.0
+WRITE_CANCEL_WAIT_MS = 1000
 
 
 TARGET_VKS = {
@@ -165,6 +169,22 @@ class Overlapped(ctypes.Structure):
         ("offset_high", wintypes.DWORD),
         ("event", wintypes.HANDLE),
     ]
+
+
+# A timed-out operation normally completes immediately after CancelIoEx. If a
+# broken driver does not acknowledge cancellation within the grace period, its
+# ctypes buffers must remain alive until Windows eventually completes it.
+_ORPHANED_WRITES: list[tuple[object, object, Overlapped, int]] = []
+
+
+def _reap_orphaned_writes() -> None:
+    remaining: list[tuple[object, object, Overlapped, int]] = []
+    for kernel32, buffer, overlapped, event in _ORPHANED_WRITES:
+        if kernel32.WaitForSingleObject(event, 0) == WAIT_OBJECT_0:
+            kernel32.CloseHandle(event)
+        else:
+            remaining.append((kernel32, buffer, overlapped, event))
+    _ORPHANED_WRITES[:] = remaining
 
 
 @dataclass(frozen=True)
@@ -360,7 +380,7 @@ class WindowsHidApi:
                 FILE_SHARE_READ | FILE_SHARE_WRITE,
                 None,
                 OPEN_EXISTING,
-                0,
+                FILE_FLAG_OVERLAPPED,
                 None,
             )
             if ctypes.c_void_p(handle).value == INVALID_HANDLE_VALUE:
@@ -536,21 +556,75 @@ class WindowsHidApi:
     def close(self, device: HidDevice) -> None:
         self.kernel32.CloseHandle(device.handle)
 
-    def write(self, device: HidDevice, report: bytes) -> None:
+    def write(
+        self,
+        device: HidDevice,
+        report: bytes,
+        timeout_seconds: float = WRITE_TIMEOUT_SECONDS,
+    ) -> None:
+        """Write one report without allowing a stalled HID driver to hang."""
+        if timeout_seconds <= 0:
+            raise ValueError("timeout_seconds must be greater than zero")
+
+        _reap_orphaned_writes()
         buffer = ctypes.create_string_buffer(report)
-        written = wintypes.DWORD()
-        if not self.kernel32.WriteFile(
-            device.handle,
-            buffer,
-            len(report),
-            ctypes.byref(written),
-            None,
-        ):
+        event = self.kernel32.CreateEventW(None, True, False, None)
+        if not event:
             raise ctypes.WinError(ctypes.get_last_error())
-        if written.value != len(report):
-            raise RuntimeError(
-                f"Short HID write: wrote {written.value} of {len(report)} bytes."
+        overlapped = Overlapped(event=event)
+        written = wintypes.DWORD()
+        preserve_operation = False
+        try:
+            immediate = self.kernel32.WriteFile(
+                device.handle,
+                buffer,
+                len(report),
+                ctypes.byref(written),
+                ctypes.byref(overlapped),
             )
+            if not immediate:
+                error = ctypes.get_last_error()
+                if error != ERROR_IO_PENDING:
+                    raise ctypes.WinError(error)
+
+                timeout_ms = max(1, math.ceil(timeout_seconds * 1000))
+                status = self.kernel32.WaitForSingleObject(event, timeout_ms)
+                if status == WAIT_TIMEOUT:
+                    cancelled = self.kernel32.CancelIoEx(
+                        device.handle, ctypes.byref(overlapped)
+                    )
+                    cancel_error = 0 if cancelled else ctypes.get_last_error()
+                    cancel_status = self.kernel32.WaitForSingleObject(
+                        event, WRITE_CANCEL_WAIT_MS
+                    )
+                    if cancel_status != WAIT_OBJECT_0:
+                        _ORPHANED_WRITES.append(
+                            (self.kernel32, buffer, overlapped, event)
+                        )
+                        preserve_operation = True
+                    detail = ""
+                    if cancel_error not in (0, ERROR_NOT_FOUND):
+                        detail = f"; cancellation failed with WinError {cancel_error}"
+                    raise TimeoutError(
+                        f"HID write timed out after {timeout_seconds:g} seconds{detail}"
+                    )
+                if status != WAIT_OBJECT_0:
+                    raise ctypes.WinError(ctypes.get_last_error())
+                if not self.kernel32.GetOverlappedResult(
+                    device.handle,
+                    ctypes.byref(overlapped),
+                    ctypes.byref(written),
+                    False,
+                ):
+                    raise ctypes.WinError(ctypes.get_last_error())
+
+            if written.value != len(report):
+                raise RuntimeError(
+                    f"Short HID write: wrote {written.value} of {len(report)} bytes."
+                )
+        finally:
+            if not preserve_operation:
+                self.kernel32.CloseHandle(event)
 
 
 def open_selected_device(index: int) -> tuple[WindowsHidApi, list[HidDevice], HidDevice]:

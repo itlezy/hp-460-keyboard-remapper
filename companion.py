@@ -49,6 +49,7 @@ MAX_PATH = 260
 NOTIFICATION_COUNT = 127
 RELOAD_SECONDS = 1.0
 NOTIFICATION_TIMEOUT_SECONDS = 3.0
+HEALTH_LOG_SECONDS = 300.0
 LOG_MAX_BYTES = 256 * 1024
 LOG_BACKUPS = 2
 
@@ -267,6 +268,7 @@ def read_notifications(api: hp460.WindowsHidApi, selected: hp460.HidDevice,
     last_notification = started
     count = 0
     last_heartbeat = started
+    last_health_log = started
     try:
         while True:
             if seconds is not None and time.monotonic() - started >= seconds:
@@ -310,6 +312,12 @@ def read_notifications(api: hp460.WindowsHidApi, selected: hp460.HidDevice,
             if observe and time.monotonic() - last_heartbeat >= 1.0:
                 report(f"heartbeat: {count} notifications, last mask={mask:03X}")
                 last_heartbeat = time.monotonic()
+            if not observe and time.monotonic() - last_health_log >= HEALTH_LOG_SECONDS:
+                report(
+                    f"Health: notification stream active "
+                    f"({count} notifications, last mask={mask:03X})."
+                )
+                last_health_log = time.monotonic()
             for key, down in tracker.update(mask):
                 if observe:
                     report(f"{key} {'DOWN' if down else 'UP'} (mask={mask:03X})")
@@ -326,6 +334,8 @@ def read_notifications(api: hp460.WindowsHidApi, selected: hp460.HidDevice,
 
 def run(args: argparse.Namespace) -> int:
     unavailable: str | None = None
+    recovering = False
+    stream_started = False
     while True:
         try:
             api, devices, selected = hp460.open_selected_device(args.device_index)
@@ -354,12 +364,18 @@ def run(args: argparse.Namespace) -> int:
                 unavailable = message
             time.sleep(args.reconnect_seconds)
             continue
-        if unavailable is not None:
-            report("HP 460 keyboard is ready again.")
-            unavailable = None
         try:
             ensure_clean_state(api, selected)
             load_mask_program(api, selected)
+            if unavailable is not None:
+                report("HP 460 keyboard is ready again; notification stream is active.")
+            elif recovering:
+                report("HP 460 companion recovered; notification stream is active.")
+            elif not stream_started:
+                report("HP 460 notification stream is active.")
+            unavailable = None
+            recovering = False
+            stream_started = True
             read_notifications(api, selected, observe=args.observe, seconds=args.seconds)
             if args.seconds is not None:
                 return 0
@@ -368,6 +384,7 @@ def run(args: argparse.Namespace) -> int:
             return 0
         except Exception as exc:
             report(f"Runtime error; reconnecting: {exc}", error=True)
+            recovering = True
         finally:
             for device in devices:
                 api.close(device)
