@@ -111,7 +111,11 @@ container is signed, and a recovery route must be established before writing.
 
 Set the logical GPIO `0x21` strap so the firmware boots with `0x20001BE0 = 1`,
 then set Fn Lock off. This gives the same normal behavior without flashing,
-but requires board identification and physical modification.
+but requires board identification and physical modification. Owner-supplied
+photographs now confirm a shared BT/Dual V1.3 PCB, a PAR2801-family controller,
+exposed reset/UART factory pads and several population options. They do not yet
+map logical GPIO `0x21` to a package pin or resistor, and no safe jumper has
+been identified. See [board photographs and opening status](board-and-opening.md).
 
 ### Dead ends
 

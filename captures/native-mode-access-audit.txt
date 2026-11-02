@@ -1,0 +1,5 @@
+PASS eight GPIO input combinations: original sampler/helper assigns flag from logical GPIO 0x21 (bank 1 bit 1)
+PASS 32,768 settings-callback cases: IDs 0..63, values 0..255, both native-mode flags; none writes native-mode byte
+PASS original legacy initializers retain HP packet adapter 0x1000F099 in all three transport modes
+PASS legacy payload adapter emits HP 0xCF5 transfer-start / 0xCF7 data packets; no native-mode write
+Limits: specific blocks/callbacks only, LED/transport stubs and simulated GPIO inputs; no exhaustive access proof, full transfer, ROM, HID or hardware execution

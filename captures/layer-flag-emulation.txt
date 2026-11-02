@@ -1,0 +1,3 @@
+PASS 19,456 original-transformer runs: both flag values, both Fn Lock values, 19 keys, all 256 modifier bytes
+PASS flag 0x20001BE0=1 + Fn Lock OFF + Fn released: all 19 keys native, no special mask or direct dispatcher
+Limits: only emulated RAM; no HID-accessible setter, persistence, full scanner/transport, rollover or hardware execution proved
